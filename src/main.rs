@@ -1432,6 +1432,7 @@ fn testExecution(){
     let code =r#"
         varA = 3
         varB = 4
+        text = 6.7
         if(1){
         }
     "#;
