@@ -966,6 +966,29 @@ impl SimData{
             }
         }
     }
+
+    fn setValueByIndex(&mut self, index:usize, value:Self) {
+        match self{ 
+            SimData::Vector(ref mut v) => { 
+                v[index]=value;
+            }
+            _ => {
+                println!("Cannot write by index to non-vector value");
+            }
+        }
+    }
+
+
+    fn push(&mut self, value:Self) {
+        match self{ 
+            SimData::Vector(ref mut v) => { 
+                v.push(value);
+            }
+            _ => {
+                println!("Cannot write by index to non-vector value");
+            }
+        }
+    }
 }
 
 
@@ -1300,7 +1323,7 @@ fn testContext(){
     let vec_value = child.context.borrow().get("v").cloned();
 
 
-    if let Some(v) = vec_value{
+    if let Some(mut v) = vec_value{
         let mut vInner = &v.readVector().to_vec()[2];
         let mut vInner0 = &vInner.readVector().to_vec()[0];
         println!("v [2][0]: {} (???)", vInner0);   
@@ -1310,6 +1333,10 @@ fn testContext(){
         println!("v [1]: {} (61)", &v.readVector().to_vec()[1].clone().readFloat());    
         println!("v [0]: {} (6)", &v.readVector().to_vec()[0].clone().readFloat());   
         println!("v [4][0][0][0]: {} (6)", &v.readVector().to_vec()[4].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readFloat());   
+        &v.push(SimData::Float(100.0));   
+        println!("v [5]: {} (100)", &v.readVector().to_vec()[5].clone().readFloat());    
+        &v.setValueByIndex(5,SimData::createFloat(2007.0));   
+        println!("v [5]: {} (2007)", &v.readVector().to_vec()[5].clone().readFloat());    
 
     }
     
