@@ -710,28 +710,45 @@ impl fmt::Debug for SimDataPayload {
 }
 
 
+// #[derive(Clone, Debug)]
+// struct SimData{
+//     dataType: SimDataType,
+//     data: SimDataPayload,
+// }
+
 #[derive(Clone, Debug)]
-struct SimData{
-    dataType: SimDataType,
-    data: SimDataPayload,
+enum SimData {
+    Null,
+    Bool(bool),
+    Float(f64),
+    Vector(Vec<SimData>),
+    Dict(HashMap<String, SimData>),
+    Error(String),
 }
+
 
 impl Drop for SimData {
     fn drop(&mut self) {
-        if let SimDataType::Vector = self.dataType {
-            unsafe {
-                ManuallyDrop::drop(&mut self.data.vValue);
-            }
-        }
+        // TODO: implement
+        // match &self {
+        //     Self::Vector(v) =>{ 
+        //         ManuallyDrop::drop(&mut ManuallyDrop::new(v));
+        //     }
+        // }
+        // if let SimDataType::Vector = self.dataType {
+        //     unsafe {
+        //         ManuallyDrop::drop(&mut self.data.vValue);
+        //     }
+        // }
     }
 }
 
 impl fmt::Display for SimData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.dataType {
-            SimDataType::Float => write!(f, "{}", unsafe { self.data.fValue }),
-            SimDataType::Bool => write!(f, "{}", unsafe { self.data.bValue }),
-            SimDataType::Null => write!(f, "Null",),
+        match self {
+            SimData::Float(v) => write!(f, "{}", v ),
+            SimData::Bool(v) => write!(f, "{}", v ),
+            SimData::Null => write!(f, "Null",),
             _ => write!(f, "unsupported type"),
         }
     }
@@ -741,272 +758,216 @@ impl SimData{
 
     // initialization
 
-    fn createFloat(v:f32) -> SimData{
-        SimData{
-            dataType: SimDataType::Float,
-            data:SimDataPayload{
-                fValue:v
-            }
-        }
+    fn createFloat(v:f64) -> SimData{
+        SimData::Float(v)
     }
 
     fn createBool(v:bool) -> SimData{
-        SimData{
-            dataType: SimDataType::Bool,
-            data:SimDataPayload{
-                bValue:v
-            }
-        }
+        SimData::Bool(v)
     }
 
     fn createNull() -> SimData {
-        SimData { 
-            dataType: SimDataType::Null, 
-            data:SimDataPayload{
-                fValue:0.0
-            }
-        }
+        SimData::Float(0.0)
     }
 
     fn createVector(v: Vec<SimData>) -> SimData {
-        SimData {
-            dataType: SimDataType::Vector,
-            data: SimDataPayload {
-                vValue: ManuallyDrop::new(Box::new(v)),
-            },
-        }
+        SimData::Vector(ManuallyDrop::new(Box::new(v)).to_vec())
     }
 
     fn dataTypeName(self) -> String {
-        match self.dataType {
-            SimDataType::Float => "Float".to_string(),
-            SimDataType::Vector => "Vector".to_string(),
-            SimDataType::Dict => "Dict".to_string(),
-            SimDataType::Bool => "Bool".to_string(),
-            SimDataType::Error => "Error".to_string(),
-            SimDataType::Null => "Null".to_string()
+        match self {
+            Float => "Float".to_string(),
+            Vector => "Vector".to_string(),
+            Dict => "Dict".to_string(),
+            Bool => "Bool".to_string(),
+            Error => "Error".to_string(),
+            SimData::Null => "Null".to_string()
         }
     }
 
     // math
-
     fn sum(v1:SimData, v2:SimData) -> SimData{
-        if(v1.clone().dataTypeName() == "Float" && v2.clone().dataTypeName() == "Float"){
-            unsafe{
-                let b1 =  v1.data.fValue;
-                let b2 =  v2.data.fValue;
-                return SimData::createFloat(v1.data.fValue+v2.data.fValue)
-            }
-        }
-        println!("cannot add different data types");
-        process::exit(1);
-        SimData{
-            dataType:SimDataType::Error,
-            data:SimDataPayload{
-                fValue:0.0
+        match (v1, v2){
+            (SimData::Float(v1), SimData::Float(v2)) => return SimData::createFloat(v1+v2),
+            _ => {
+                println!("cannot add different data types");    
+                process::exit(1);
             }
         }
     }
 
     fn sub(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Float" && v2.clone().dataTypeName() == "Float" {
-            unsafe{
-                return SimData::createFloat(v1.data.fValue - v2.data.fValue);
+        match (v1, v2){
+            (SimData::Float(v1), SimData::Float(v2)) => return SimData::createFloat(v1-v2),
+            _ => {
+                println!("cannot subsract different data types");    
+                process::exit(1);
             }
         }
-        println!("Cannot subtract different data types");
-        process::exit(1);
     }
 
     fn mul(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Float" && v2.clone().dataTypeName() == "Float" {
-            unsafe{
-                return SimData::createFloat(v1.data.fValue * v2.data.fValue);
+        match (v1, v2){
+            (SimData::Float(v1), SimData::Float(v2)) => return SimData::createFloat(v1*v2),
+            _ => {
+                println!("cannot multiply different data types");    
+                process::exit(1);
             }
         }
-        println!("Cannot multiply different data types");
-        process::exit(1);
     }
 
     fn div(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Float" && v2.clone().dataTypeName() == "Float" {
-            unsafe{
-                return SimData::createFloat(v1.data.fValue / v2.data.fValue);
+        match (v1, v2){
+            (SimData::Float(v1), SimData::Float(v2)) => return SimData::createFloat(v1/v2),
+            _ => {
+                println!("cannot divide different data types");    
+                process::exit(1);
             }
         }
-        println!("Cannot divide different data types");
-        process::exit(1);
     }
 
     // logical operators
 
     fn and(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Bool" && v2.clone().dataTypeName() == "Bool" {
-            unsafe{
-                return SimData::createBool(v1.data.bValue && v2.data.bValue);
+        match (v1, v2){
+            (SimData::Bool(v1), SimData::Bool(v2)) => return SimData::createBool(v1 && v2),
+            _ => {
+                println!("cannot use 'and' for non-bool data");    
+                process::exit(1);
             }
         }
-        println!("Cannot perform 'and' on different data types");
-        process::exit(1);
     }
 
     fn or(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Bool" && v2.clone().dataTypeName() == "Bool" {
-            unsafe{
-                return SimData::createBool(v1.data.bValue || v2.data.bValue);
+        match (v1, v2){
+            (SimData::Bool(v1), SimData::Bool(v2)) => return SimData::createBool(v1 || v2),
+            _ => {
+                println!("cannot use 'or' for non-bool data");    
+                process::exit(1);
             }
         }
-        println!("Cannot perform 'or' on different data types");
-        process::exit(1);
     }
 
     fn nor(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Bool" && v2.clone().dataTypeName() == "Bool" {
-            unsafe {
-                return SimData::createBool(!(v1.data.bValue || v2.data.bValue));
+        match (v1, v2){
+            (SimData::Bool(v1), SimData::Bool(v2)) => return SimData::createBool(!(v1||v2)),
+            _ => {
+                println!("cannot use 'nor' for non-bool data");    
+                process::exit(1);
             }
         }
-        println!("Cannot perform 'nor' on different data types");
-        process::exit(1);
     }
     
     fn xor(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Bool" && v2.clone().dataTypeName() == "Bool" {
-            unsafe {
-                return SimData::createBool(v1.data.bValue ^ v2.data.bValue);
+        match (v1, v2){
+            (SimData::Bool(v1), SimData::Bool(v2)) => return SimData::createBool(!(v1==v2)),
+            _ => {
+                println!("cannot use 'xor' for non-bool data");    
+                process::exit(1);
             }
         }
-        println!("Cannot perform 'xor' on different data types");
-        process::exit(1);
     }
     
     fn not(v: SimData) -> SimData {
-        if v.clone().dataTypeName() == "Bool" {
-            unsafe {
-                return SimData::createBool(!v.data.bValue);
+        match v{
+            SimData::Bool(v1) => return SimData::createBool(!v1),
+            _ => {
+                println!("cannot use 'not' for non-bool data");    
+                process::exit(1);
             }
         }
-        println!("Cannot perform 'not' on non-boolean data type");
-        process::exit(1);
     }
 
     // comparisons
 
     fn gt(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Float" && v2.clone().dataTypeName() == "Float" {
-            unsafe {
-                return SimData::createBool(v1.data.fValue > v2.data.fValue);
+        match (v1, v2){
+            (SimData::Float(v1), SimData::Float(v2)) => return SimData::createBool(v1>v2),
+            _ => {
+                println!("cannot use 'gt' for non-float data");    
+                process::exit(1);
             }
         }
-        println!("Cannot perform 'gt' on different or non-float data types");
-        process::exit(1);
     }
     
     fn gte(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Float" && v2.clone().dataTypeName() == "Float" {
-            unsafe {
-                return SimData::createBool(v1.data.fValue >= v2.data.fValue);
+        match (v1, v2){
+            (SimData::Float(v1), SimData::Float(v2)) => return SimData::createBool(v1>=v2),
+            _ => {
+                println!("cannot use 'gte' for non-float data");    
+                process::exit(1);
             }
         }
-        println!("Cannot perform 'gte' on different or non-float data types");
-        process::exit(1);
     }
     
     fn lt(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Float" && v2.clone().dataTypeName() == "Float" {
-            unsafe {
-                return SimData::createBool(v1.data.fValue < v2.data.fValue);
+        match (v1, v2){
+            (SimData::Float(v1), SimData::Float(v2)) => return SimData::createBool(v1<v2),
+            _ => {
+                println!("cannot use 'lt' for non-float data");    
+                process::exit(1);
             }
         }
-        println!("Cannot perform 'lt' on different or non-float data types");
-        process::exit(1);
     }
     
     fn lte(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Float" && v2.clone().dataTypeName() == "Float" {
-            unsafe {
-                return SimData::createBool(v1.data.fValue <= v2.data.fValue);
+        match (v1, v2){
+            (SimData::Float(v1), SimData::Float(v2)) => return SimData::createBool(v1<=v2),
+            _ => {
+                println!("cannot use 'lte' for non-float data");    
+                process::exit(1);
             }
         }
-        println!("Cannot perform 'lte' on different or non-float data types");
-        process::exit(1);
     }
     
     fn eq(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Float" && v2.clone().dataTypeName() == "Float" {
-            unsafe {
-                return SimData::createBool(v1.data.fValue == v2.data.fValue);
+        match (v1, v2){
+            (SimData::Float(v1), SimData::Float(v2)) => return SimData::createBool(v1==v2),
+            _ => {
+                println!("cannot use 'eq' for non-float data");    
+                process::exit(1);
             }
         }
-        println!("Cannot perform 'eq' on different or non-float data types");
-        process::exit(1);
     }
     
     fn neq(v1: SimData, v2: SimData) -> SimData {
-        if v1.clone().dataTypeName() == "Float" && v2.clone().dataTypeName() == "Float" {
-            unsafe {
-                return SimData::createBool(v1.data.fValue != v2.data.fValue);
+        match (v1, v2){
+            (SimData::Float(v1), SimData::Float(v2)) => return SimData::createBool(!(v1==v2)),
+            _ => {
+                println!("cannot use 'gt' for non-float data");    
+                process::exit(1);
             }
         }
-        println!("Cannot perform 'neq' on different or non-float data types");
-        process::exit(1);
     }
 
     // convertors
 
-    fn readFloat(self) -> f32 {
-        unsafe{ return self.data.fValue }
+    fn readFloat(self) -> f64 {
+        match self{ 
+            SimData::Float(v) => {return v;}
+            _ => {return 0.0;}
+        }
     }
 
     fn readBool(self) -> bool {
-        unsafe{ return self.data.bValue }
+        match self{ 
+            SimData::Bool(v) => {return v}
+            _ => {return false}
+        }
     }
 
-    fn readVector(&self) -> &Vec<SimData> {
-        match self.dataType {
-            SimDataType::Vector => unsafe { &*self.data.vValue },
+    fn readVector(&self) -> Vec<SimData> {
+        match self{ 
+            SimData::Vector(v) => {return v.clone();}
             _ => {
                 println!("Cannot read non-vector as a vector");
-                process::exit(1);
+                let vRes = vec![SimData::Float(0.0)];
+                return vRes;
             }
         }
     }
 }
 
-// struct ContextScope {
-//     context: HashMap<String, SimData>,
-//     parent_scope: Option<Box<ContextScope>>,
-// }
-
-// impl ContextScope {
-//     fn new() -> ContextScope {
-//         ContextScope {
-//             context: HashMap::new(),
-//             parent_scope: None,
-//         }
-//     }
-
-//     fn extend(self) -> ContextScope {
-//         ContextScope {
-//             context: HashMap::new(),
-//             parent_scope: Option::new(Box::new(self)),
-//         }
-//     }
-
-//     fn set(&mut self, name: String, value: SimData) {
-//         self.context.insert(name, value);
-//     }
-
-//     fn get(&self, name: String) -> SimData {
-//         if let Some(value) = self.context.get(&name) {
-//             *value
-//         } else if let Some(parent_scope) = &self.parent_scope {
-//             parent_scope.get(name)
-//         } else {
-//             panic!("Variable not found: {}", name);
-//         }
-//     }
-// }
 
 
 #[derive(Clone)]
@@ -1023,18 +984,6 @@ impl ContextScope {
         }
     }
 
-    // fn extend(&mut self) -> &mut ContextScope {
-    //     let new_context = Rc::new(RefCell::new(HashMap::new()));
-    //     let new_scope = ContextScope {
-    //         context: new_context.clone(),
-    //         parent_scope: Some(Box::new(ContextScope {
-    //             context: self.context.clone(),
-    //             parent_scope: self.parent_scope.take(),
-    //         })),
-    //     };
-    //     self.parent_scope = Some(Box::new(new_scope));
-    //     self.parent_scope.as_mut().unwrap()
-    // }
     fn extend(&self) -> ContextScope {
         ContextScope {
             context: Rc::new(RefCell::new(HashMap::new())),
@@ -1067,7 +1016,7 @@ impl ContextScope {
     fn pset(&self, name: String, value: SimData){
 
         if let Some(parent_scope) = &self.parent_scope {
-            if(parent_scope.has(name.clone())){
+            if parent_scope.has(name.clone()){
                 parent_scope.pset(name.clone(), value)
             }
             else {
@@ -1077,16 +1026,6 @@ impl ContextScope {
             self.set(name, value)
         }
     }
-
-    // fn get(&self, name: &str) -> SimData {
-    //     if let Some(value) = self.context.borrow().get(name) {
-    //         *value
-    //     } else if let Some(parent_scope) = &self.parent_scope {
-    //         parent_scope.get(name)
-    //     } else {
-    //         panic!("Variable not found: {}", name);
-    //     }
-    // }
 
     fn has(&self, name: String) -> bool {
         
@@ -1163,77 +1102,23 @@ impl Context {
         self.values.insert(name, value);
     }
 }
-/// /new
 
-
-// fn testVecRead( vecValue:Option<SimData> ) {
-//     match vecValue.clone(){
-//         Some(SimData  { dataType, data }) => { //{dataType,data}
-//             println!("Exists"); 
-//             unsafe{
-//                 match data{
-//                     SimDataPayload{ vValue } => {
-//                         let mut value_copy = (*vValue)[0].clone();
-//                         println!("Data payload [0]: {} (6)", value_copy.readFloat());
-//                         value_copy = (*vValue)[1].clone();
-//                         println!("Data payload [1]: {} (61)", value_copy.readFloat());
-//                         match (*vValue)[2] {
-//                             SimData  { dataType, ref data } => { //{dataType,data}
-//                                 println!("Exists"); 
-//                                 unsafe{
-//                                     match data{
-//                                         SimDataPayload{ vValue } => {
-//                                             let mut value_copy = (*vValue)[0].clone();
-//                                             println!("Data payload [2][0]: {} (3)", value_copy.readFloat());
-//                                             // value_copy = (*vValue)[1].clone();
-//                                             // println!("Data payload [1]: {}", value_copy.readFloat())
-//                                         }
-//                                     }
-//                                 };
-//                             }
-//                         }
-//                     }
-//                 }
-//             };
-//         }
-//         None => {
-//             println!("Does not exist");
-//         }
-//     }
-// }
 
 unsafe fn test_vec_read(vec_value: Option<SimData>) -> Option<Vec<SimData>>{
     match vec_value{
         Some(sd) => { return Some(sd.readVector().to_vec()); }
-        None => {  }
-    }
-    match vec_value{
-
-        Some(SimData  { dataType, ref data }) => { //{dataType,data}
-            match data{
-                SimDataPayload { vValue } =>{
-                    return Some((&vValue).to_vec());
-                }
-            }
-        }
         None => { return None }
     }
-    // if let Some(SimData { data: SimDataPayload { vValue }, .. }) = vec_value {
-    //     println!("Exists");
-    //     unsafe {
-    //         let mut value_copy = (*vValue)[0].clone();
-    //         println!("Data payload [0]: {} (6)", value_copy.readFloat());
-    //         value_copy = (*vValue)[1].clone();
-    //         println!("Data payload [1]: {} (61)", value_copy.readFloat());
+    // match vec_value{
 
-    //         // if let Some(SimData { data: Some(SimDataPayload { vValue }), .. }) = (*vValue)[2].as_ref() {
-    //         //     println!("Exists");
-    //         //     let mut value_copy = (*vValue)[0].clone();
-    //         //     println!("Data payload [2][0]: {} (3)", value_copy.readFloat());
-    //         // }
+    //     Some(SimData::Vector(v)) => { //{dataType,data}
+    //         match data{
+    //             SimDataPayload { vValue } =>{
+    //                 return Some((&vValue).to_vec());
+    //             }
+    //         }
     //     }
-    // } else {
-    //     println!("Does not exist");
+    //     Some(_) => { return None }
     // }
 }
 
@@ -1401,39 +1286,21 @@ fn testContext(){
                 SimData::createFloat(61.0),
                 vInside,
                 SimData::createFloat(62.0),
+                SimData::createVector(vec![
+                    SimData::createVector(vec![
+                        SimData::createVector(vec![
+                            SimData::createFloat(2007.0)
+                        ])
+                    ])  
+                ])
             ]
         )
     );
 
     let vec_value = child.context.borrow().get("v").cloned();
 
-    // if let Some(v) = vec_value {
-    //     let v2 = v.readVector()[2].clone();
-    //     if let SimDataType::Vector(v3) = v2.getData() {
-    //         let v4 = v3.iter().map(|x| x.clone()).collect::<Vec<SimData>>();
-    //         println!("v [2][1]: {} (8)", v4[1].readFloat());
-    //     }
-    // }
-    
-    // if let Some(v) = vec_value {
-    //     let v2 = v.readVector()[2].clone();
-    //     if let  v3 = v2.readVector().clone() {
-    //         let v4 = v3.iter().map(|x| x.clone()).collect::<Vec<SimData>>();
-    //         // println!("v [2][1]: {} (8)", v3[1].clone().readFloat());
-    //     }
-    // }
 
     if let Some(v) = vec_value{
-        // let v2 = v.readVector().to_vec()[2].clone(); // Clone the value before calling readFloat()
-        // println!("v [2][1]: {} (8)", v2.readVector().to_vec()[1].readFloat());
-        // let v2 = v.readVector().to_vec()[2].clone();
-        // println!("here");
-        // if let v3 = v2.readVector().to_vec().clone() {
-        //     println!("v [2][1]: {} (8)", v3[0].clone().readFloat());
-        // }
-        // println!("here 2");
-        // println!("v [0]: {} (6)", v.readVector().to_vec()[0].clone().readFloat());    
-        // println!("v [x]: {} (61)", v.readVector().to_vec()[child.get(String::from("x")).readFloat() as u64 as usize].clone().readFloat());   
         let mut vInner = &v.readVector().to_vec()[2];
         let mut vInner0 = &vInner.readVector().to_vec()[0];
         println!("v [2][0]: {} (???)", vInner0);   
@@ -1442,13 +1309,10 @@ fn testContext(){
         println!("v [3]: {} (62)", &v.readVector().to_vec()[3].clone().readFloat());    
         println!("v [1]: {} (61)", &v.readVector().to_vec()[1].clone().readFloat());    
         println!("v [0]: {} (6)", &v.readVector().to_vec()[0].clone().readFloat());   
-        // println!("v [2][1]: {} (8)", v.readVector()         [2].readVector()[1].readFloat());
-        // println!("v [2][1]: {} (8)", v.readVector().to_vec()[2].readVector().to_vec()[1].readFloat());
+        println!("v [4][0][0][0]: {} (6)", &v.readVector().to_vec()[4].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readFloat());   
 
     }
     
-    
-
     println!("\nAll tests passed!");
     
 }
@@ -1484,65 +1348,6 @@ fn main() {
         tos(0)
     "#;
 
-    /*
-        x = 0 + x
-        y = 3
-
-        f = func(x){
-            u = 0
-            z = y + fibk(2 + fib(4 + ui(9)+0))
-            returns (u)
-        }
-
-        z = y + fibk(2 + fib(4))
-
-        k = f(g(x))
-        
-        if(x>0){
-            y = 3
-        }
-        
-        if(x>0){
-            y = 3
-        }
-        
-        
-        if(x>0){
-            y = 3
-            
-            while(x>0){
-                y = 3
-            }
-        }
-        
-        while(x>0){
-            y = 3
-            z = y + 2
-        }
-        
-
-        if(x>0){
-            y = 3
-        }
-        
-        if(x>0){
-            y = 3
-        }
-        
-        
-        if(x>0){
-            y = 3
-            
-            while(x>0){
-                y = 3
-            }
-        }
-        
-        while(x>0){
-            y = 3
-            z = y + 2
-        }
-    */
 
     let mut lexer = Lexer::new(input);
     let tokens = lexer.tokenize();
@@ -1577,10 +1382,6 @@ fn main() {
         }
     }
 
-    // need to repeat until has
-
-    // println!("{:#?}", tokenTreeRec );
-
     let signs = s.clone();
 
     for signGroup in signs {
@@ -1591,58 +1392,20 @@ fn main() {
             let k = &mut tokenTreeRec;
             let res = process_sum_signs(getByPath(k, address.clone()).clone(), signGroup.clone()).1;
             setByPath(k, address.clone(), res);
-            // let res = process_multiply_signs(getByPath(k, address.clone()).clone()).1;
-            // setByPath(k, address.clone(), res);
             address = findUngroupedOperator(tokenTreeRec.clone(), signGroup.clone());
         }
     }
 
-    // println!("address: {:#?}",findUngroupedOperator(tokenTreeRec.clone(),vec!["*".to_string()]));
     println!("ended");
-    // println!("{:#?}", tokenTreeRec.clone() );
     println!("{:#?}", tokenTreeRec);
 
 
     println!("================================================================");
     println!("= Testing SimData struct                                       =");
     println!("================================================================");
-    // let mut simData1 = SimData::createFloat(9.0);
-    // println!("expect 9: {}", simData1.readFloat());
-    // let mut simData2 = SimData::createFloat(11.0);
-    // println!("expect 11: {}", simData2.readFloat());
-    // let mut simData3 = SimData::sum(simData1, simData2);
-    // println!("expect 20: {}", simData3.readFloat());
-    // let mut simData4 = SimData::createBool(true);
 
 
     testContext();
 
-
-
-    // call parent.set with the mutable reference
-    // parent_ref.set(String::from("x".to_string()), SimData::createFloat(2.0));
-
-    // let mut child_ref = &mut child; // create a mutable reference to child
-
-    // println!("After set: parent.x={}, child.x={}", parent_ref.get("x".to_string()), child_ref.get("x".to_string()));
-    
-    // println!("================================================");
-    // let mut context2 = ContextScope::new();
-    // context2.set(String::from("x"), SimData::createFloat(9.0));
-    // let x_before = context2.get("x".to_string());
-
-    // let mut context3 = context2.extend();
-    // let x_after_3 = context3.get("x".to_string());
-    // context3.set(String::from("x"), SimData::createFloat(11.0));
-    // context3.set("x".to_string(), SimData::createFloat(2.0));
-    // let x_after_2 = context2.get("x".to_string());
-
-    // println!("value in context 2 before updating 3: {}", x_before);
-    // println!("value in context 2 after updating 3: {}", x_after_2);
-    // println!("value in context 3 after updating 3: {}", x_after_3);
-    // println!("parent scope (showing only defined variables)");
-    // for (key, value) in &context2.context {
-    //     println!("{key}: {}", value.readFloat());
-    // }
 
 }
