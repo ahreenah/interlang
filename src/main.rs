@@ -722,6 +722,7 @@ enum SimData {
     Bool(bool),
     Float(f64),
     Vector(Vec<SimData>),
+    String(String),
     Dict(HashMap<String, SimData>),
     Error(String),
 }
@@ -772,6 +773,10 @@ impl SimData{
 
     fn createVector(v: Vec<SimData>) -> SimData {
         SimData::Vector(ManuallyDrop::new(Box::new(v)).to_vec())
+    }
+
+    fn createString(v: String) -> SimData {
+        SimData::String(v)
     }
 
     fn dataTypeName(self) -> String {
@@ -963,6 +968,17 @@ impl SimData{
                 println!("Cannot read non-vector as a vector");
                 let vRes = vec![SimData::Float(0.0)];
                 return vRes;
+            }
+        }
+    }
+
+    fn readString(&self) -> String {
+        match self{ 
+            SimData::String(v) => {return v.clone()}
+            _ => {
+                println!("Cannot read non-vector as a vector");
+                let sRes = "".to_string();
+                return sRes;
             }
         }
     }
@@ -1277,6 +1293,13 @@ fn testContext(){
         )
     );
 
+    child.pset(
+        String::from("s1"),
+        SimData::String(
+            String::from("Hello world")
+        )
+    );
+
 
     println!("\nMath operations:");
     println!("y = x + 6: child.y={} (7)", child.get(String::from("y")).readFloat()); // 7
@@ -1290,6 +1313,10 @@ fn testContext(){
 
     println!("\nComparison operations:");
     println!("e = y > z: child.e={} (false)", child.get(String::from("e")).readBool()); // 3.5
+
+
+    println!("\nStrings:");
+    println!("s1 = {} (\"Hello world\")", child.get(String::from("s1")).readString()); // 3.5
 
 
     println!("\nVectors:");
@@ -1312,7 +1339,8 @@ fn testContext(){
                 SimData::createVector(vec![
                     SimData::createVector(vec![
                         SimData::createVector(vec![
-                            SimData::createFloat(2007.0)
+                            SimData::createFloat(2007.0),
+                            child.get(String::from("s1")),
                         ])
                     ])  
                 ])
@@ -1333,6 +1361,8 @@ fn testContext(){
         println!("v [1]: {} (61)", &v.readVector().to_vec()[1].clone().readFloat());    
         println!("v [0]: {} (6)", &v.readVector().to_vec()[0].clone().readFloat());   
         println!("v [4][0][0][0]: {} (2007)", &v.readVector().to_vec()[4].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readFloat());   
+        println!("v [4][0][0][1]: {} (\"Hello world\")", &v.readVector().to_vec()[4].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readVector().to_vec()[1].clone().readString());   
+        println!("v [4][0][0][1]: {} (\"Hello world\")", &v.readVector().to_vec()[4].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readVector().to_vec()[1].clone().readString());   
         &v.push(SimData::Float(100.0));   
         println!("v [5]: {} (100)", &v.readVector().to_vec()[5].clone().readFloat());    
         &v.setValueByIndex(5,SimData::createFloat(2007.0));   
