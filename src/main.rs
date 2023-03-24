@@ -1326,13 +1326,13 @@ fn testContext(){
     if let Some(mut v) = vec_value{
         let mut vInner = &v.readVector().to_vec()[2];
         let mut vInner0 = &vInner.readVector().to_vec()[0];
-        println!("v [2][0]: {} (???)", vInner0);   
+        println!("v [2][0]: {} (3)", vInner0);   
         let mut vInner1 = &vInner.readVector().to_vec()[1];
-        println!("v [2][1]: {} (???)", vInner1);   
+        println!("v [2][1]: {} (8)", vInner1);   
         println!("v [3]: {} (62)", &v.readVector().to_vec()[3].clone().readFloat());    
         println!("v [1]: {} (61)", &v.readVector().to_vec()[1].clone().readFloat());    
         println!("v [0]: {} (6)", &v.readVector().to_vec()[0].clone().readFloat());   
-        println!("v [4][0][0][0]: {} (6)", &v.readVector().to_vec()[4].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readFloat());   
+        println!("v [4][0][0][0]: {} (2007)", &v.readVector().to_vec()[4].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readVector().to_vec()[0].clone().readFloat());   
         &v.push(SimData::Float(100.0));   
         println!("v [5]: {} (100)", &v.readVector().to_vec()[5].clone().readFloat());    
         &v.setValueByIndex(5,SimData::createFloat(2007.0));   
