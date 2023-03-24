@@ -188,6 +188,16 @@ fn get_name(token: &Token) -> String {
     }
 }
 
+fn get_number(token: &Token) -> f64 {
+    match token {
+        Token::Keyword(name, level) => 0.0,
+        Token::Name(name, level) => 0.0,
+        Token::Number(v, level) => *v,
+        Token::MathSign(name, level) => 0.0,
+        Token::SpecialSign(name, level) => 0.0,
+        Token::Bracket(name, level) => 0.0,
+    }
+}
 
 fn get_type(token: &Token) -> String {
     match token {
@@ -669,7 +679,7 @@ fn nestCalls(tree: TokenTreeRec) -> (bool, TokenTreeRec) {
 enum SimDataType {
     Float,
     Vector,
-    Dict,
+    Object,
     Bool,
     Error,
     Null
@@ -723,7 +733,7 @@ enum SimData {
     Float(f64),
     Vector(Vec<SimData>),
     String(String),
-    Dict(HashMap<String, SimData>),
+    Object(HashMap<String, SimData>),
     Error(String),
 }
 
@@ -779,11 +789,17 @@ impl SimData{
         SimData::String(v)
     }
 
+    fn createObject(map: HashMap<String, SimData>) -> SimData{
+        SimData::Object(map)
+    }
+
+    //misc
+
     fn dataTypeName(self) -> String {
         match self {
             Float => "Float".to_string(),
             Vector => "Vector".to_string(),
-            Dict => "Dict".to_string(),
+            Object => "Object".to_string(),
             Bool => "Bool".to_string(),
             Error => "Error".to_string(),
             SimData::Null => "Null".to_string()
@@ -982,6 +998,18 @@ impl SimData{
             }
         }
     }
+
+    fn readObject(&self) -> HashMap<String, SimData>{
+        match self{ 
+            SimData::Object(v) => {return v.clone()}
+            _ => {
+                println!("Cannot read non-object as a object");
+                return HashMap::new();
+            }
+        }
+    }
+
+    // vector utilities
 
     fn setValueByIndex(&mut self, index:usize, value:Self) {
         match self{ 
@@ -1348,7 +1376,16 @@ fn testContext(){
         )
     );
 
+    child.pset(
+        String::from("o"), 
+        SimData::Object(HashMap::from([
+            (String::from("c"), SimData::Float(10.0)),
+            (String::from("d"), SimData::Float(1.0)),
+        ]))
+    );
+
     let vec_value = child.context.borrow().get("v").cloned();
+    let obj_value = child.context.borrow().get("o").cloned();
 
 
     if let Some(mut v) = vec_value{
@@ -1366,12 +1403,129 @@ fn testContext(){
         &v.push(SimData::Float(100.0));   
         println!("v [5]: {} (100)", &v.readVector().to_vec()[5].clone().readFloat());    
         &v.setValueByIndex(5,SimData::createFloat(2007.0));   
+
         println!("v [5]: {} (2007)", &v.readVector().to_vec()[5].clone().readFloat());    
+    }
+
+    if let Some (mut o) = obj_value {
+
+        println!("\nObjects: ");
+        if let Some(v) = &o.readObject().get("c") {
+            println!("o.c: {} (10)", v );    
+        }
+        // if let Some(v) =  {
+            println!("o.d: {} (1)", &o.readObject()["d"] );    
+        // }
 
     }
     
     println!("\nAll tests passed!");
     
+}
+
+fn testExecution(){
+
+
+    println!("================================================================");
+    println!("= Testing code execition                                       =");
+    println!("================================================================");
+    let code =r#"
+        varA = 3
+        varB = 4
+        if(1){
+        }
+    "#;
+
+    let mut parent = ContextScope::new();
+
+
+
+    let mut lexer = Lexer::new(code);
+    let tokens = lexer.tokenize();
+
+    let mut tokenTreeRec = process_tokens(&tokens);
+
+    while hasLevel(tokenTreeRec.clone(), 2) {
+        tokenTreeRec = process_tokens_tree(tokenTreeRec);
+        println!("1st step");
+        println!("{:#?}", tokenTreeRec);
+    }
+
+    (_, tokenTreeRec) = nestAdjascents(tokenTreeRec.clone());
+    (_, tokenTreeRec) = nestCalls(tokenTreeRec.clone());
+
+    let s = vec![
+        vec![".".to_string()],
+        vec!["*".to_string(), "/".to_string()],
+        vec!["+".to_string(), "-".to_string()],
+        vec![">".to_string(), "<".to_string()],
+        vec!["=".to_string()]
+    ];
+
+    let signs = s.clone();
+
+    for signGroup in signs {
+        let mut found = true;
+
+        // need to properly loop it and make recursive
+        while found {
+            (found, tokenTreeRec) = process_sum_signs(tokenTreeRec, signGroup.clone());
+        }
+    }
+
+    let signs = s.clone();
+
+    for signGroup in signs {
+        let mut address = findUngroupedOperator(tokenTreeRec.clone(), signGroup.clone());
+        while address.len() > 0 {
+            address.remove(address.len() - 1);
+            // println!("address: {:#?}",address);
+            let k = &mut tokenTreeRec;
+            let res = process_sum_signs(getByPath(k, address.clone()).clone(), signGroup.clone()).1;
+            setByPath(k, address.clone(), res);
+            address = findUngroupedOperator(tokenTreeRec.clone(), signGroup.clone());
+        }
+    }
+
+    println!("ended");
+    println!("{:#?}", tokenTreeRec);
+
+    let currentContext = parent;
+
+    for i in tokenTreeRec.clone().children {
+        if let TokenTreeRec{token, children} = i {
+            let name = get_name(&token);
+            if(name=="="){
+                println!("valuation equation");
+                if let TokenTreeRec{token:tokenLeft, children:leftChildren} = &children[0]{
+                    println!("    left is: {}", get_name(&tokenLeft));
+                    let name = get_name(&tokenLeft);
+                    let mut value;
+                    if let TokenTreeRec{token:tokenRight, children:rightChildren} = &children[1]{
+                        println!("    right is: {}", get_number(&tokenRight));
+                        value = get_number(&tokenRight);
+                        currentContext.set(name, SimData::Float(value))
+                    }
+
+                }
+            } else{
+                println!("Unknown action: {}", name);
+            }
+        }
+    }
+
+
+    // if let ContextScope{ context{RefCell}, parent_scope } = currentContext{
+
+    // }
+    let context_ref = currentContext.context.borrow();
+
+    for (name, data) in context_ref.iter() {
+        println!("{} -> {:?}", name, data);
+    }
+    // context_ref.get(k)
+
+
 }
 
 fn main() {
@@ -1464,5 +1618,7 @@ fn main() {
 
     testContext();
 
+
+    testExecution();
 
 }
