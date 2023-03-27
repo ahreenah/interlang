@@ -1569,7 +1569,11 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
                     context.set(name, value)
 
                 }
-            } else{
+            } 
+            else if (name=="if"){
+                
+                panic!("condition under construction")
+            }else{
                 println!("Unknown action: {}", name);
             }
         }
