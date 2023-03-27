@@ -1,10 +1,12 @@
+use std::alloc::System;
 use std::process;
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::fmt;
 use std::mem::ManuallyDrop;
-
+#[macro_use]
+extern crate log;
 
 #[derive(Debug, Clone)]
 pub enum Token {
@@ -1423,26 +1425,68 @@ fn testContext(){
     
 }
 
-fn evaluate_r_value(tokenTree:TokenTreeRec) -> SimData{
-    if let TokenTreeRec{token:tokenRight, children:children} = tokenTree{
-        if get_type(&tokenRight) == "Number" {
-            println!("    right is: {}", get_number(&tokenRight));
-            return SimData::Float(get_number(&tokenRight));
-        }
-        else if get_type(&tokenRight) == "MathSign" {
-            if get_name(&tokenRight) == "+" {
-                return SimData::sum(evaluate_r_value(children.clone()[0].clone()), evaluate_r_value(children.clone()[1].clone()))
-            }
-            else if get_name(&tokenRight) == "-" {
-                return SimData::sub(evaluate_r_value(children.clone()[0].clone()), evaluate_r_value(children.clone()[1].clone()))
-            }
-            else if get_name(&tokenRight) == "*" {
-                return SimData::mul(evaluate_r_value(children.clone()[0].clone()), evaluate_r_value(children.clone()[1].clone()))
-            }
-            else if get_name(&tokenRight) == "/" {
-                return SimData::div(evaluate_r_value(children.clone()[0].clone()), evaluate_r_value(children.clone()[1].clone()))
-            }
-        }
+fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimData{
+    if let TokenTreeRec{token:ref tokenRight, children:children} = tokenTree{
+        println!("name is {} {}", get_name(tokenRight), get_type(tokenRight));
+        match tokenRight {
+            Token::Number(name, level) => {
+                return SimData::Float(get_number(&tokenRight));
+            },
+            Token::Keyword(name, level) =>{
+                if(name=="(") {
+                    print!("Bracket found");
+                    return evaluate_r_value(children.clone()[0].clone(), context)
+                }
+            },
+            Token::MathSign(name, level) => {
+                if *name == '+' {
+                    return SimData::sum(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
+                else if *name == '-' {
+                    return SimData::sub(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
+                else if *name == '*' {
+                    return SimData::mul(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
+                else if *name == '/' {
+                    return SimData::div(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
+            },
+            Token::SpecialSign(name, level) => {},
+            Token::Bracket(name, level) => {
+                print!("Bracket found");
+                process::exit(12);
+            },
+            Token::Name(ref name, level) => {
+
+                if(context.has(get_name(&tokenRight))){
+                    return context.get(get_name(&tokenRight))
+                }
+            },
+        };
+        // if get_type(&tokenRight) == "Number" {
+        //     println!("    right is: {}", get_number(&tokenRight));
+        //     return SimData::Float(get_number(&tokenRight));
+        // }
+        // if get_type(&tokenRight) == "MathSign" {
+        //     if get_name(&tokenRight) == "+" {
+        //         return SimData::sum(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+        //     }
+        //     else if get_name(&tokenRight) == "-" {
+        //         return SimData::sub(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+        //     }
+        //     else if get_name(&tokenRight) == "*" {
+        //         return SimData::mul(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+        //     }
+        //     else if get_name(&tokenRight) == "/" {
+        //         return SimData::div(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+        //     }
+        // }
+        // else if get_type(&tokenRight) == "Name"{
+        //     if(context.has(get_name(&tokenRight))){
+        //         return context.get(get_name(&tokenRight))
+        //     }
+        // }
         return SimData::Float(2007.0);
         
         // context.set(name, SimData::Float(value))
@@ -1461,7 +1505,7 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
                     println!("    left is: {}", get_name(&tokenLeft));
                     let name = get_name(&tokenLeft);
                     let mut value;
-                    value = evaluate_r_value(children[1].clone());
+                    value = evaluate_r_value(children[1].clone(), context);
                     context.set(name, value)
 
                 }
@@ -1486,6 +1530,20 @@ fn testExecution(){
         testz = 4.5 / 3 - 0.5
         testy = 5.25 - 1.5 * 2 - 9 * 7
         testk = 6.75 / 1.5 + 0.25
+        terf = varB
+
+        varA = 2.0
+        varB = 3.0
+        varC = 2 * (2 + 1.0)
+        varD = varC / 2.0 - varA
+
+        xA = (5 + 3) * 4 / 2
+        xB = (6 - 2) * (7 + 1) / 4
+        xC = 2 * (3 + 4) - 5 / 2
+        xD = ((2 + 3) * 4 + 7) / 5
+        xE = 8 - (3 + 1) * 2 + 6 / 3
+
+
         if(1){
         }
     "#;
