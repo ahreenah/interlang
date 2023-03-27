@@ -1423,16 +1423,69 @@ fn testContext(){
     
 }
 
-fn testExecution(){
+fn evaluate_r_value(tokenTree:TokenTreeRec) -> SimData{
+    if let TokenTreeRec{token:tokenRight, children:children} = tokenTree{
+        if get_type(&tokenRight) == "Number" {
+            println!("    right is: {}", get_number(&tokenRight));
+            return SimData::Float(get_number(&tokenRight));
+        }
+        else if get_type(&tokenRight) == "MathSign" {
+            if get_name(&tokenRight) == "+" {
+                return SimData::sum(evaluate_r_value(children.clone()[0].clone()), evaluate_r_value(children.clone()[1].clone()))
+            }
+            else if get_name(&tokenRight) == "-" {
+                return SimData::sub(evaluate_r_value(children.clone()[0].clone()), evaluate_r_value(children.clone()[1].clone()))
+            }
+            else if get_name(&tokenRight) == "*" {
+                return SimData::mul(evaluate_r_value(children.clone()[0].clone()), evaluate_r_value(children.clone()[1].clone()))
+            }
+            else if get_name(&tokenRight) == "/" {
+                return SimData::div(evaluate_r_value(children.clone()[0].clone()), evaluate_r_value(children.clone()[1].clone()))
+            }
+        }
+        return SimData::Float(2007.0);
+        
+        // context.set(name, SimData::Float(value))
+    }
+    return SimData::Null
+}
 
+fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
+    
+    for i in tokenTreeRec.clone().children {
+        if let TokenTreeRec{token, children} = i {
+            let name = get_name(&token);
+            if(name=="="){
+                println!("valuation equation");
+                if let TokenTreeRec{token:tokenLeft, children:leftChildren} = &children[0]{
+                    println!("    left is: {}", get_name(&tokenLeft));
+                    let name = get_name(&tokenLeft);
+                    let mut value;
+                    value = evaluate_r_value(children[1].clone());
+                    context.set(name, value)
+
+                }
+            } else{
+                println!("Unknown action: {}", name);
+            }
+        }
+    }
+
+}
+
+fn testExecution(){
+    
 
     println!("================================================================");
     println!("= Testing code execition                                       =");
     println!("================================================================");
     let code =r#"
-        varA = 3
-        varB = 4
-        text = 6.7
+        varA = 1.5 + 0.75 - 0.25
+        varB = 4 * 9 / 9
+        text = 6.79
+        testz = 4.5 / 3 - 0.5
+        testy = 5.25 - 1.5 * 2 - 9 * 7
+        testk = 6.75 / 1.5 + 0.25
         if(1){
         }
     "#;
@@ -1491,30 +1544,9 @@ fn testExecution(){
     println!("ended");
     println!("{:#?}", tokenTreeRec);
 
-    let currentContext = parent;
+    let mut currentContext = parent;
 
-    for i in tokenTreeRec.clone().children {
-        if let TokenTreeRec{token, children} = i {
-            let name = get_name(&token);
-            if(name=="="){
-                println!("valuation equation");
-                if let TokenTreeRec{token:tokenLeft, children:leftChildren} = &children[0]{
-                    println!("    left is: {}", get_name(&tokenLeft));
-                    let name = get_name(&tokenLeft);
-                    let mut value;
-                    if let TokenTreeRec{token:tokenRight, children:rightChildren} = &children[1]{
-                        println!("    right is: {}", get_number(&tokenRight));
-                        value = get_number(&tokenRight);
-                        currentContext.set(name, SimData::Float(value))
-                    }
-
-                }
-            } else{
-                println!("Unknown action: {}", name);
-            }
-        }
-    }
-
+    execute_tree(&mut currentContext, tokenTreeRec);
 
     // if let ContextScope{ context{RefCell}, parent_scope } = currentContext{
 
