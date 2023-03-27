@@ -13,7 +13,7 @@ pub enum Token {
     Keyword(String, usize),
     Name(String, usize),
     Number(f64, usize),
-    MathSign(char, usize),
+    MathSign(String, usize),
     SpecialSign(char, usize),
     Bracket(char, usize),
 }
@@ -106,8 +106,25 @@ impl<'a> Lexer<'a> {
                     let number = self.parse_number();
                     tokens.push(Token::Number(number, self.nest_level));
                 }
-                '+' | '-' | '*' | '/' | '=' | '>' | '<' | '.' => {
-                    tokens.push(Token::MathSign(current_char, self.nest_level));
+                '+' | '-' | '*' | '/' | '=' | '>' | '<' | '!' => {
+                    let mut name = current_char.to_string();
+                    self.advance();
+                    if ((name=='<'.to_string()) || (name=='>'.to_string()) || (name=='='.to_string()) || (name=='!'.to_string())){
+                        if let Some(current_char) = self.current_char {
+                            if current_char == '=' {
+                                name.push('=');
+                            }
+                            self.advance();
+                        }
+                    }
+
+                    tokens.push(Token::MathSign(name, self.nest_level));
+                    // let math_sign = self.parse_math_sign();
+                    // tokens.push(Token::MathSign(math_sign, self.nest_level));
+                    // self.advance();
+                },
+                '.' => {
+                    tokens.push(Token::MathSign(current_char.to_string(), self.nest_level));
                     self.advance();
                 }
                 ';' => {
@@ -141,7 +158,7 @@ impl<'a> Lexer<'a> {
         let mut name = String::new();
 
         while let Some(c) = self.current_char {
-            if c.is_alphabetic() {
+            if c.is_alphabetic() || c.is_digit(10) {
                 name.push(c);
                 self.advance();
             } else {
@@ -165,6 +182,35 @@ impl<'a> Lexer<'a> {
         }
 
         number.parse::<f64>().unwrap()
+    }
+
+    fn parse_math_sign(&mut self) -> String {
+        let mut name = String::new();
+        if let Some(c) = self.current_char {
+            if((c=='>' ) || (c=='<') || (c=='=')){
+                name.push(c);
+                self.advance();
+                if let Some(c2) = self.current_char {
+                    // not ended line
+                    if((name==">".to_string()) || (name=="<".to_string()) && (c2=='=')){
+                        name.push(c2);
+                        self.advance()
+                    }
+                }
+            }
+        }
+        name
+
+        // while let Some(c) = self.current_char {
+        //     if c.is_alphabetic() || c.is_digit(10) {
+        //         name.push(c);
+        //         self.advance();
+        //     } else {
+        //         break;
+        //     }
+        // }
+
+        // name
     }
 }
 
@@ -1427,34 +1473,50 @@ fn testContext(){
 
 fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimData{
     if let TokenTreeRec{token:ref tokenRight, children:children} = tokenTree{
-        println!("name is {} {}", get_name(tokenRight), get_type(tokenRight));
+        // println!("name is {} {}", get_name(tokenRight), get_type(tokenRight));
         match tokenRight {
             Token::Number(name, level) => {
                 return SimData::Float(get_number(&tokenRight));
             },
             Token::Keyword(name, level) =>{
                 if(name=="(") {
-                    print!("Bracket found");
                     return evaluate_r_value(children.clone()[0].clone(), context)
                 }
             },
             Token::MathSign(name, level) => {
-                if *name == '+' {
+                if *name == "+" {
                     return SimData::sum(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
                 }
-                else if *name == '-' {
+                else if *name == "-" {
                     return SimData::sub(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
                 }
-                else if *name == '*' {
+                else if *name == "*" {
                     return SimData::mul(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
                 }
-                else if *name == '/' {
+                else if *name == "/" {
                     return SimData::div(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
+                else if *name == ">" {
+                    return SimData::gt(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
+                else if *name == "<" {
+                    return SimData::lt(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
+                else if *name == ">=" {
+                    return SimData::gte(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
+                else if *name == "<=" {
+                    return SimData::lte(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
+                else if *name == "==" {
+                    return SimData::eq(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
+                else if *name == "!=" {
+                    return SimData::neq(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
                 }
             },
             Token::SpecialSign(name, level) => {},
             Token::Bracket(name, level) => {
-                print!("Bracket found");
                 process::exit(12);
             },
             Token::Name(ref name, level) => {
@@ -1500,9 +1562,7 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
         if let TokenTreeRec{token, children} = i {
             let name = get_name(&token);
             if(name=="="){
-                println!("valuation equation");
                 if let TokenTreeRec{token:tokenLeft, children:leftChildren} = &children[0]{
-                    println!("    left is: {}", get_name(&tokenLeft));
                     let name = get_name(&tokenLeft);
                     let mut value;
                     value = evaluate_r_value(children[1].clone(), context);
@@ -1541,7 +1601,12 @@ fn testExecution(){
         xB = (6 - 2) * (7 + 1) / 4
         xC = 2 * (3 + 4) - 5 / 2
         xD = ((2 + 3) * 4 + 7) / 5
-        xE = 8 - (3 + 1) * 2 + 6 / 3
+        x1E = 6 > 9 - (3 - 1)
+        x2E = 6 >= 9 - 3
+        x3E = 6 <= 9 - 3
+        x4E = 6 < 9 - 3
+        x5e = 6 == 9 - 3
+        x6e = 6 != 9 - 3
 
 
         if(1){
@@ -1570,7 +1635,7 @@ fn testExecution(){
         vec![".".to_string()],
         vec!["*".to_string(), "/".to_string()],
         vec!["+".to_string(), "-".to_string()],
-        vec![">".to_string(), "<".to_string()],
+        vec![">".to_string(), "<".to_string(), ">=".to_string(), "<=".to_string(), "==".to_string(), "!=".to_string()],
         vec!["=".to_string()]
     ];
 
@@ -1620,91 +1685,91 @@ fn testExecution(){
 }
 
 fn main() {
-    let input =
-        r#"
-        testV = 3
-        testVa = 4
-        testVas = 5 > 0
+    // let input =
+    //     r#"
+    //     testV = 3
+    //     testVa = 4
+    //     testVas = 5 > 0
 
-        fib = func(x){
-            res = fib(x-1) + fib(x-2)
-            if (x>0) {
-                fib(x-1)
-                fib(x-1)
-                return res
-            }
-            return 1
-        }
+    //     fib = func(x){
+    //         res = fib(x-1) + fib(x-2)
+    //         if (x>0) {
+    //             fib(x-1)
+    //             fib(x-1)
+    //             return res
+    //         }
+    //         return 1
+    //     }
 
-        print(testValue)
-        print(fib(testValue.data.[0+7-u.user], 9))
+    //     print(testValue)
+    //     print(fib(testValue.data.[0+7-u.user], 9))
 
-        if(x>0){
-            print(9)
-            print(9)
-        }
+    //     if(x>0){
+    //         print(9)
+    //         print(9)
+    //     }
 
-        user(0)
-        user.name(0)
-        tos = user.name.toString
-        tos(0)
-    "#;
-
-
-    let mut lexer = Lexer::new(input);
-    let tokens = lexer.tokenize();
-
-    let mut tokenTreeRec = process_tokens(&tokens);
-
-    while hasLevel(tokenTreeRec.clone(), 2) {
-        tokenTreeRec = process_tokens_tree(tokenTreeRec);
-        println!("1st step");
-        println!("{:#?}", tokenTreeRec);
-    }
-
-    (_, tokenTreeRec) = nestAdjascents(tokenTreeRec.clone());
-    (_, tokenTreeRec) = nestCalls(tokenTreeRec.clone());
-
-    let s = vec![
-        vec![".".to_string()],
-        vec!["*".to_string(), "/".to_string()],
-        vec!["+".to_string(), "-".to_string()],
-        vec![">".to_string(), "<".to_string()],
-        vec!["=".to_string()]
-    ];
-
-    let signs = s.clone();
-
-    for signGroup in signs {
-        let mut found = true;
-
-        // need to properly loop it and make recursive
-        while found {
-            (found, tokenTreeRec) = process_sum_signs(tokenTreeRec, signGroup.clone());
-        }
-    }
-
-    let signs = s.clone();
-
-    for signGroup in signs {
-        let mut address = findUngroupedOperator(tokenTreeRec.clone(), signGroup.clone());
-        while address.len() > 0 {
-            address.remove(address.len() - 1);
-            // println!("address: {:#?}",address);
-            let k = &mut tokenTreeRec;
-            let res = process_sum_signs(getByPath(k, address.clone()).clone(), signGroup.clone()).1;
-            setByPath(k, address.clone(), res);
-            address = findUngroupedOperator(tokenTreeRec.clone(), signGroup.clone());
-        }
-    }
-
-    println!("ended");
-    println!("{:#?}", tokenTreeRec);
+    //     user(0)
+    //     user.name(0)
+    //     tos = user.name.toString
+    //     tos(0)
+    // "#;
 
 
-    println!("================================================================");
-    println!("= Testing SimData struct                                       =");
-    println!("================================================================");
+    // let mut lexer = Lexer::new(input);
+    // let tokens = lexer.tokenize();
+
+    // let mut tokenTreeRec = process_tokens(&tokens);
+
+    // while hasLevel(tokenTreeRec.clone(), 2) {
+    //     tokenTreeRec = process_tokens_tree(tokenTreeRec);
+    //     println!("1st step");
+    //     println!("{:#?}", tokenTreeRec);
+    // }
+
+    // (_, tokenTreeRec) = nestAdjascents(tokenTreeRec.clone());
+    // (_, tokenTreeRec) = nestCalls(tokenTreeRec.clone());
+
+    // let s = vec![
+    //     vec![".".to_string()],
+    //     vec!["*".to_string(), "/".to_string()],
+    //     vec!["+".to_string(), "-".to_string()],
+    //     vec![">".to_string(), "<".to_string()],
+    //     vec!["=".to_string()]
+    // ];
+
+    // let signs = s.clone();
+
+    // for signGroup in signs {
+    //     let mut found = true;
+
+    //     // need to properly loop it and make recursive
+    //     while found {
+    //         (found, tokenTreeRec) = process_sum_signs(tokenTreeRec, signGroup.clone());
+    //     }
+    // }
+
+    // let signs = s.clone();
+
+    // for signGroup in signs {
+    //     let mut address = findUngroupedOperator(tokenTreeRec.clone(), signGroup.clone());
+    //     while address.len() > 0 {
+    //         address.remove(address.len() - 1);
+    //         // println!("address: {:#?}",address);
+    //         let k = &mut tokenTreeRec;
+    //         let res = process_sum_signs(getByPath(k, address.clone()).clone(), signGroup.clone()).1;
+    //         setByPath(k, address.clone(), res);
+    //         address = findUngroupedOperator(tokenTreeRec.clone(), signGroup.clone());
+    //     }
+    // }
+
+    // println!("ended");
+    // println!("{:#?}", tokenTreeRec);
+
+
+    // println!("================================================================");
+    // println!("= Testing SimData struct                                       =");
+    // println!("================================================================");
 
 
     testContext();
