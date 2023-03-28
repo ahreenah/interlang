@@ -1518,7 +1518,16 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
             },
             Token::SpecialSign(name, level) => {},
             Token::Bracket(name, level) => {
-                process::exit(12);
+                if *name=='[' {
+                    let mut items: Vec<SimData> = vec![];
+                    for i in children {
+                        items.push(evaluate_r_value(i, context))
+                    }
+                    return SimData::createVector(items);
+                }
+                else{
+                    process::exit(12);
+                }
             },
             Token::Name(ref name, level) => {
 
@@ -1550,7 +1559,7 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
         //         return context.get(get_name(&tokenRight))
         //     }
         // }
-        return SimData::Float(2007.0);
+        return SimData::Null;
         
         // context.set(name, SimData::Float(value))
     }
@@ -1658,6 +1667,11 @@ fn testExecution(){
         x4E = 6 < 9 - 3
         x5e = 6 == 9 - 3
         x6e = 6 != 9 - 3
+
+        ar = [1 2 [3] x6E varA x5e ]
+        br = []
+        cr = [1]
+        dr = [2+2]
 
 
         if( xA  > 10 + 5 ){
