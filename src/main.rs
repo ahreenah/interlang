@@ -1515,6 +1515,49 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                 else if *name == "!=" {
                     return SimData::neq(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
                 }
+                else if *name == "." {
+                    println!("{:#?}", children);
+                    let left = children[0].clone();
+                    let right = children[1].clone();
+                    println!("left: {:#?}", left);
+                    let leftObj = evaluate_r_value(left, context);
+                    println!("leftObj: {:#?}", leftObj);
+                    println!("right: {:#?}", right.token);
+                    match right.token {
+                        Token::Keyword(..) | Token::Bracket(..) => {
+                            let name =get_name(&right.token);
+                            if(name=="("){
+                                println!("bracket",);
+                                let index = evaluate_r_value(right.children[0].clone(), context);
+                                println!("bracket: {:?}", index);
+                                // println!("data by index is: {:?}", leftObj.readVector().to_vec()[index.readFloat().round() as usize]);
+                                return  leftObj.readVector().to_vec()[index.readFloat().round() as usize].clone();
+                            }
+                            else{
+                                panic!("invalid expression");
+                            }
+                        }
+                        _ => {
+                            // code to execute if token is not a keyword or bracket
+                        }
+                    }
+                    if let Token::Keyword(name, _) = right.token {
+                        if(name=="("){
+                            println!("bracket",);
+                            let index = evaluate_r_value(right.children[0].clone(), context);
+                            println!("bracket: {:?}", index);
+                            // println!("data by index is: {:?}", leftObj.readVector().to_vec()[index.readFloat().round() as usize]);
+                            return leftObj.readVector().to_vec()[index.readFloat().round() as usize].clone();
+                        }
+                        else{
+                            panic!("invalid expression");
+                        }
+                    }else{
+                        println!("name io");
+                    }
+                    panic!("Item Access - Not implemented!");
+                    return SimData::neq(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
             },
             Token::SpecialSign(name, level) => {},
             Token::Bracket(name, level) => {
@@ -1668,7 +1711,7 @@ fn testExecution(){
         x5e = 6 == 9 - 3
         x6e = 6 != 9 - 3
 
-        ar = [1 2 [3] x6E varA x5e ]
+        ar = [1 2 [3] x6e varA [[[x5e]]] ]
         br = []
         cr = [1]
         dr = [2+2]
@@ -1688,6 +1731,10 @@ fn testExecution(){
         while ( decount > 5 ) {
             decount = decount - 2
         }
+
+        ka = ar.(0)
+        kb = ar.(2-1)
+        kc = ar.(ar.(2-1)).(0)
     "#;
 
     let mut parent = ContextScope::new();
