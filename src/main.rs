@@ -1592,7 +1592,35 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
                 println!("");
                 println!("");
                 // panic!("condition under construction")
-            }else{
+            }
+            else if (name=="while"){
+                println!("");
+                
+                // condition
+                println!("condition:");
+                println!("{:?}",i.clone().children[0].children[0]);
+                println!("valuated: ");
+                let mut res = evaluate_r_value(i.children[0].children[0].clone(), context);
+                println!("{:?}",res);
+                println!("");
+
+                // body
+                println!("body:");
+                println!("{:?}",i.clone().children[1]);
+                while (res.readBool()) {
+                    execute_tree(context, i.children[1].clone());
+                    println!("valuated: ");
+                    res = evaluate_r_value(i.children[0].children[0].clone(), context);
+                    println!("{:?}",res);
+                    println!("");
+    
+                }
+
+                println!("");
+                println!("");
+                // panic!("condition under construction")
+            }
+            else{
                 println!("Unknown action: {}", name);
             }
         }
@@ -1640,6 +1668,11 @@ fn testExecution(){
             if( xA  > 10 + 4 ){
                 eeeeeeeeeeeeeee = 5/3
             }
+        }
+
+        decount = 12
+        while ( decount > 5 ) {
+            decount = decount - 2
         }
     "#;
 
