@@ -1516,20 +1516,20 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                     return SimData::neq(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
                 }
                 else if *name == "." {
-                    println!("{:#?}", children);
+                    // println!("{:#?}", children);
                     let left = children[0].clone();
                     let right = children[1].clone();
-                    println!("left: {:#?}", left);
+                    // println!("left: {:#?}", left);
                     let leftObj = evaluate_r_value(left, context);
-                    println!("leftObj: {:#?}", leftObj);
-                    println!("right: {:#?}", right.token);
+                    // println!("leftObj: {:#?}", leftObj);
+                    // println!("right: {:#?}", right.token);
                     match right.token {
                         Token::Keyword(..) | Token::Bracket(..) => {
                             let name =get_name(&right.token);
                             if(name=="("){
-                                println!("bracket",);
+                                // println!("bracket",);
                                 let index = evaluate_r_value(right.children[0].clone(), context);
-                                println!("bracket: {:?}", index);
+                                // println!("bracket: {:?}", index);
                                 // println!("data by index is: {:?}", leftObj.readVector().to_vec()[index.readFloat().round() as usize]);
                                 return  leftObj.readVector().to_vec()[index.readFloat().round() as usize].clone();
                             }
@@ -1543,9 +1543,9 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                     }
                     if let Token::Keyword(name, _) = right.token {
                         if(name=="("){
-                            println!("bracket",);
+                            // println!("bracket",);
                             let index = evaluate_r_value(right.children[0].clone(), context);
-                            println!("bracket: {:?}", index);
+                            // println!("bracket: {:?}", index);
                             // println!("data by index is: {:?}", leftObj.readVector().to_vec()[index.readFloat().round() as usize]);
                             return leftObj.readVector().to_vec()[index.readFloat().round() as usize].clone();
                         }
@@ -1616,11 +1616,37 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
             let name = get_name(&token);
             if(name=="="){
                 if let TokenTreeRec{token:tokenLeft, children:leftChildren} = &children[0]{
-                    let name = get_name(&tokenLeft);
-                    let mut value;
-                    value = evaluate_r_value(children[1].clone(), context);
-                    context.set(name, value)
-
+                    if let Token::Name(name, _) = &tokenLeft {
+                        let name = get_name(&tokenLeft);
+                        let mut value;
+                        value = evaluate_r_value(children[1].clone(), context);
+                        context.set(name, value)
+                    } else if let Token::MathSign(name, _) = &tokenLeft {
+                        println!("Left token is math sign");
+                        if name == "." {
+                            // panic!("dot children 0 is: {:?}", children[0].children[1]);
+                            println!("Sign is .");
+                            let vector_name = get_name(&children[0].children[0].clone().token);
+                            println!("vector name: {:?}", vector_name);
+                            println!("vector data: {:?}", evaluate_r_value(children[0].children[0].clone(), context));
+                            let index = evaluate_r_value(children[0].children[1].children[0].clone(), context);
+                            println!("index: {:?}",  index);
+                            let value = evaluate_r_value(children[1].clone(), context);
+                            println!("new value: {:?}", value);
+                            let oldVector = &mut context.get(vector_name.clone());
+                            // oldVector.setValueByIndex(index., value);
+                            oldVector.setValueByIndex(index.readFloat().round() as i64 as usize, value);
+                            context.set(vector_name, oldVector.clone());
+                            // context.set(name, value)
+                            
+                            // panic!("proper dynamic index access");
+                        } else {
+                            panic!("unsupported lvalue type {:#?}", children[0]);
+                        }
+                    }
+                    else{
+                        panic!("unsupported lvalue type {:#?}", children[0]);
+                    }
                 }
             } 
             else if (name=="if"){
@@ -1686,7 +1712,9 @@ fn testExecution(){
     println!("================================================================");
     println!("= Testing code execition                                       =");
     println!("================================================================");
-    let code =r#"
+    /*
+    
+    
         varA = 1.5 + 0.75 - 0.25
         varB = 4 * 9 / 9
         text = 6.79
@@ -1710,13 +1738,7 @@ fn testExecution(){
         x4E = 6 < 9 - 3
         x5e = 6 == 9 - 3
         x6e = 6 != 9 - 3
-
-        ar = [1 2 [3] x6e varA [[[x5e]]] ]
-        br = []
-        cr = [1]
-        dr = [2+2]
-
-
+    
         if( xA  > 10 + 5 ){
             asdasdsadas = 2 + 9
             if( xA  > 10 + 6 ){
@@ -1726,6 +1748,36 @@ fn testExecution(){
                 eeeeeeeeeeeeeee = 5/3
             }
         }
+     */
+    let code =r#"
+
+        ar = [11 2 [3] x6e varA [[[x5e]]] ]
+        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 0.693 1.414 1.732 0.618 1.414 2.302 0.577 1.732 1.618 2.718 1.442 2.303 0.693 0.618]
+        i = 0
+        sum = 0
+        while (i<19){
+            sum = sum + sorted.(i)
+            i = i + 1
+        }
+        while (i < 19){
+            j = i + 1
+            while (j < 20){
+                if (sorted.(j) < sorted.(i)){
+                    temp = sorted.(j)
+                    sorted.(j) = sorted.(i)
+                    sorted.(i) = temp
+                }
+                j = j + 1
+            }
+            i = i + 1
+        }
+
+
+        br = []
+        cr = [1]
+        dr = [2+2]
+
+
 
         decount = 12
         while ( decount > 5 ) {
@@ -1735,6 +1787,10 @@ fn testExecution(){
         ka = ar.(0)
         kb = ar.(2-1)
         kc = ar.(ar.(2-1)).(0)
+        ar.(0) = 23
+        ar.(1) = 1
+        ar.(2) = 1
+
     "#;
 
     let mut parent = ContextScope::new();
@@ -1799,6 +1855,9 @@ fn testExecution(){
 
     // }
     let context_ref = currentContext.context.borrow();
+    
+    println!();
+    println!("============ Execution results: =============================");
 
     for (name, data) in context_ref.iter() {
         println!("{} -> {:?}", name, data);
