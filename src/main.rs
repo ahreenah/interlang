@@ -191,7 +191,7 @@ impl<'a> Lexer<'a> {
                 name.push(c);
                 self.advance();
                 if let Some(c2) = self.current_char {
-                    // not ended line
+                    // ended line
                     if((name==">".to_string()) || (name=="<".to_string()) && (c2=='=')){
                         name.push(c2);
                         self.advance()
@@ -950,6 +950,7 @@ impl SimData{
     // comparisons
 
     fn gt(v1: SimData, v2: SimData) -> SimData {
+        println!("{:?} {:?}",v1, v2);
         match (v1, v2){
             (SimData::Float(v1), SimData::Float(v2)) => return SimData::createBool(v1>v2),
             _ => {
@@ -1559,7 +1560,7 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
 fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
     
     for i in tokenTreeRec.clone().children {
-        if let TokenTreeRec{token, children} = i {
+        if let TokenTreeRec{ref token, ref children} = i {
             let name = get_name(&token);
             if(name=="="){
                 if let TokenTreeRec{token:tokenLeft, children:leftChildren} = &children[0]{
@@ -1571,8 +1572,26 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
                 }
             } 
             else if (name=="if"){
+                println!("");
                 
-                panic!("condition under construction")
+                // condition
+                println!("condition:");
+                println!("{:?}",i.clone().children[0].children[0]);
+                println!("valuated: ");
+                let mut res = evaluate_r_value(i.children[0].children[0].clone(), context);
+                println!("{:?}",res);
+                println!("");
+
+                // body
+                println!("body:");
+                println!("{:?}",i.clone().children[1]);
+                if (res.readBool()) {
+                    execute_tree(context, i.children[1].clone());
+                }
+
+                println!("");
+                println!("");
+                // panic!("condition under construction")
             }else{
                 println!("Unknown action: {}", name);
             }
@@ -1613,7 +1632,14 @@ fn testExecution(){
         x6e = 6 != 9 - 3
 
 
-        if(1){
+        if( xA  > 10 + 5 ){
+            asdasdsadas = 2 + 9
+            if( xA  > 10 + 6 ){
+                qqqqqqqqqqqqqqq = 2 + 9
+            }
+            if( xA  > 10 + 4 ){
+                eeeeeeeeeeeeeee = 5/3
+            }
         }
     "#;
 
