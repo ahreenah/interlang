@@ -1752,24 +1752,28 @@ fn testExecution(){
     let code =r#"
 
         ar = [11 2 [3] x6e varA [[[x5e]]] ]
-        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 0.693 1.414 1.732 0.618 1.414 2.302 0.577 1.732 1.618 2.718 1.442 2.303 0.693 0.618]
+        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 0.693 1.414 1.732 0.618 1.414 2.302 0.5717 1.732 1.618 2.718 1.442 2.303 0.693 0.618]
         i = 0
         sum = 0
         while (i<19){
             sum = sum + sorted.(i)
             i = i + 1
         }
-        while (i < 19){
-            j = i + 1
-            while (j < 20){
-                if (sorted.(j) < sorted.(i)){
-                    temp = sorted.(j)
-                    sorted.(j) = sorted.(i)
-                    sorted.(i) = temp
+
+        k = 0
+        s = 0
+
+        while (k < 19){
+            k = k + 1
+            s = 0
+            while (s < 19){
+                if (sorted.(s) > sorted.(s+1)) {
+                    temp = sorted.(s)
+                    sorted.(s) = sorted.(s+1)
+                    sorted.(s+1) = temp
                 }
-                j = j + 1
+                s = s + 1
             }
-            i = i + 1
         }
 
 
@@ -1790,7 +1794,6 @@ fn testExecution(){
         ar.(0) = 23
         ar.(1) = 1
         ar.(2) = 1
-
     "#;
 
     let mut parent = ContextScope::new();
