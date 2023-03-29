@@ -845,11 +845,12 @@ impl SimData{
 
     fn dataTypeName(self) -> String {
         match self {
-            Float => "Float".to_string(),
-            Vector => "Vector".to_string(),
-            Object => "Object".to_string(),
-            Bool => "Bool".to_string(),
-            Error => "Error".to_string(),
+            SimData::Float(ref v) => "Float".to_string(),
+            SimData::Vector(ref v) => "Vector".to_string(),
+            SimData::Object(ref v) => "Object".to_string(),
+            SimData::Bool(_) => "Bool".to_string(),
+            SimData::Error(_) => "Error".to_string(),
+            SimData::String(_) => "String".to_string(),
             SimData::Null => "Null".to_string()
         }
     }
@@ -1552,8 +1553,25 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                         else{
                             panic!("invalid expression");
                         }
-                    }else{
-                        println!("name io");
+                    }else if let Token::Name(name, _) = right.token {
+                        println!("field name {:?}", name);
+                        // println!("object {:?}", leftObj);
+                        match (leftObj.clone(), name.as_str()) {
+                            (data, "type") => {
+                                print!("getting type of {:?} -> {:?}", data, SimData::String(data.clone().dataTypeName()));
+                                return SimData::String(data.dataTypeName());
+                            },
+                            (SimData::Vector(ref v), "length") => {
+                                return SimData::Float(v.len() as f64);
+                            },
+                            (SimData::Object(ref v), _) => {
+                                if let Some(data) = v.get(name.as_str()){
+                                    return data.clone();
+                                }
+                                return SimData::Null;
+                            },
+                            _ => {}
+                        }
                     }
                     panic!("Item Access - Not implemented!");
                     return SimData::neq(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
@@ -1781,7 +1799,8 @@ fn testExecution(){
             ]
         ]
 
-        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 0.693 1.414 1.732 0.618 1.414 2.302 0.5717 1.732 1.618 2.718 1.442 2.303 0.693 0.618]
+        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 0.693 1.414 1.732 0.618]
+        sl = sorted.length
         i = 0
         sum = 0
         while (i<19){
@@ -1792,15 +1811,18 @@ fn testExecution(){
         k = 0
         s = 0
 
-        while (k < 19){
+
+        repeats = 0
+        while (k < sorted.length){
             k = k + 1
             s = 0
-            while (s < 19){
+            while (s < sorted.length-1){
                 if (sorted.(s) > sorted.(s+1)) {
                     temp = sorted.(s)
                     sorted.(s) = sorted.(s+1)
                     sorted.(s+1) = temp
                 }
+                repeats = repeats+1
                 s = s + 1
             }
         }
@@ -1820,10 +1842,30 @@ fn testExecution(){
         ka = ar.(0)
         kb = ar.(2-1)
         kc = ar.(ar.(2-1)).(0)
+
+        fi = pair.first
+        si = pair.second
+        ti = pair.third
+        length = pair.length
+        size = pair.length.size
+        sizeType = size.type
+        arType = ar.type
+        pairType = pair.type
     "#;
 
     let mut parent = ContextScope::new();
-
+    parent.set(
+        "pair".to_string(), 
+        SimData::Object(HashMap::from([
+            (String::from("first"), SimData::Float(10.0)),
+            (String::from("second"), SimData::Float(1.0)),
+            (
+                String::from("length"), 
+                SimData::Object(HashMap::from([
+                    ( "size".to_string(), SimData::Float(90.0) )
+                ]))
+            ),
+    ])));
 
 
     let mut lexer = Lexer::new(code);
