@@ -7,6 +7,8 @@ use std::fmt;
 use std::mem::ManuallyDrop;
 #[macro_use]
 extern crate log;
+use log::{info, warn};
+use simple_logger::SimpleLogger;
 
 #[derive(Debug, Clone)]
 pub enum Token {
@@ -91,7 +93,7 @@ impl<'a> Lexer<'a> {
 
         while let Some(current_char) = self.current_char {
             match current_char {
-                'a'..='z' | 'A'..='Z' => {
+                'a'..='z' | 'A'..='Z' | '_' => {
                     let name = self.parse_name();
 
                     if keywords.contains(&name.as_str()) {
@@ -158,7 +160,7 @@ impl<'a> Lexer<'a> {
         let mut name = String::new();
 
         while let Some(c) = self.current_char {
-            if c.is_alphabetic() || c.is_digit(10) {
+            if c.is_alphabetic() || c.is_digit(10) || c=='_' {
                 name.push(c);
                 self.advance();
             } else {
@@ -343,7 +345,7 @@ fn process_tokens(tokens: &Vec<Token>) -> TokenTreeRec {
     let mut min_level: usize = 0;
     let mut max_level: usize = 0;
     for token in tokens {
-        println!("{} -  {:?}", get_nest_level(token), token);
+        // println!("{} -  {:?}", get_nest_level(token), token);
         if min_level == 0 || get_nest_level(token) < min_level {
             min_level = get_nest_level(token);
         }
@@ -351,7 +353,7 @@ fn process_tokens(tokens: &Vec<Token>) -> TokenTreeRec {
             max_level = get_nest_level(token);
         }
     }
-    println!("levels: {} {}", min_level, max_level);
+    // println!("levels: {} {}", min_level, max_level);
     let mut tree = TokenTreeRec::new(Token::Keyword("Code".to_string(), 0));
     for token in tokens {
         if get_nest_level(token) != max_level {
@@ -361,7 +363,7 @@ fn process_tokens(tokens: &Vec<Token>) -> TokenTreeRec {
             tree.children[index].children.push(TokenTreeRec::new(token.clone()));
         }
     }
-    println!("{:#?}", tree);
+    // println!("{:#?}", tree);
     return tree;
 }
 
@@ -370,7 +372,7 @@ fn process_tokens_tree(tree: TokenTreeRec) -> TokenTreeRec {
     let mut min_level: usize = 0;
     let mut max_level: usize = 0;
     for token in tree.children {
-        println!("{} -  {:?}", get_nest_level(&token.token), token);
+        // println!("{} -  {:?}", get_nest_level(&token.token), token);
         if min_level == 0 || get_nest_level(&token.token) < min_level {
             min_level = get_nest_level(&token.token);
         }
@@ -379,7 +381,7 @@ fn process_tokens_tree(tree: TokenTreeRec) -> TokenTreeRec {
         }
         // println!("{:#?}", TokenTree::new(token.clone()));
     }
-    println!("levels: {} {}", min_level, max_level);
+    // println!("levels: {} {}", min_level, max_level);
 
     let mut tree3 = TokenTreeRec::new(Token::Keyword("Code".to_string(), 0));
 
@@ -427,7 +429,7 @@ fn process_multiply_signs(tree: TokenTreeRec) -> (bool, TokenTreeRec) {
             tree2.children.push(newToken);
             i += 2;
             found = true;
-            println!("found);");
+            // println!("found);");
         } else {
             let mut newToken = tree.children[i].clone();
             tree2.children.push(newToken);
@@ -473,7 +475,7 @@ fn process_sum_signs(tree: TokenTreeRec, lookupOperators: Vec<String>) -> (bool,
             tree2.children.push(newToken);
             i += 2;
             found = true;
-            println!("found);");
+            // println!("found);");
         } else {
             let mut newToken = tree.children[i].clone();
             tree2.children.push(newToken);
@@ -593,7 +595,7 @@ fn nestAdjascents(tree: TokenTreeRec) -> (bool, TokenTreeRec) {
             tree2.children.push(newToken);
             i += 2;
             found = true;
-            println!("found);");
+            // println!("found);");
         } else {
             if(vec!["return".to_string()].contains(
                 &get_name(&tree.clone().children[i].token)
@@ -698,7 +700,7 @@ fn nestCalls(tree: TokenTreeRec) -> (bool, TokenTreeRec) {
             tree2.children.push(callToken);//newToken);
             i += 1;
             found = true;
-            println!("found);");
+            // println!("found);");
         } else {
             let mut newToken = tree.children[i].clone();
             tree2.children.push(newToken);
@@ -857,10 +859,10 @@ impl SimData{
 
     // math
     fn sum(v1:SimData, v2:SimData) -> SimData{
-        match (v1, v2){
+        match (&v1, &v2){
             (SimData::Float(v1), SimData::Float(v2)) => return SimData::createFloat(v1+v2),
             _ => {
-                println!("cannot add different data types");    
+                println!("cannot add following data types: {}, {}", v1.clone(), v2.clone());    
                 process::exit(1);
             }
         }
@@ -870,7 +872,7 @@ impl SimData{
         match (v1, v2){
             (SimData::Float(v1), SimData::Float(v2)) => return SimData::createFloat(v1-v2),
             _ => {
-                println!("cannot subsract different data types");    
+                println!("cannot subsract following data types");    
                 process::exit(1);
             }
         }
@@ -880,7 +882,7 @@ impl SimData{
         match (v1, v2){
             (SimData::Float(v1), SimData::Float(v2)) => return SimData::createFloat(v1*v2),
             _ => {
-                println!("cannot multiply different data types");    
+                println!("cannot multiply following data types");    
                 process::exit(1);
             }
         }
@@ -890,7 +892,7 @@ impl SimData{
         match (v1, v2){
             (SimData::Float(v1), SimData::Float(v2)) => return SimData::createFloat(v1/v2),
             _ => {
-                println!("cannot divide different data types");    
+                println!("cannot divide following data types");    
                 process::exit(1);
             }
         }
@@ -951,7 +953,7 @@ impl SimData{
     // comparisons
 
     fn gt(v1: SimData, v2: SimData) -> SimData {
-        println!("{:?} {:?}",v1, v2);
+        // println!("{:?} {:?}",v1, v2);
         match (v1, v2){
             (SimData::Float(v1), SimData::Float(v2)) => return SimData::createBool(v1>v2),
             _ => {
@@ -1484,6 +1486,38 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                 if(name=="(") {
                     return evaluate_r_value(children.clone()[0].clone(), context)
                 }
+
+                if *name=="[" {
+                    // println!("parsing [ top");
+                    let mut items: Vec<SimData> = vec![];
+                    let mut obj:HashMap<String, SimData> = HashMap::new();
+                    let mut mode  = 0; // vector
+                    for i in children {
+                        // println!("i = {:?}", i);
+                        if let TokenTreeRec{ref token, ref children} = i {
+                            if children.len() > 0 {
+                            if let TokenTreeRec{ref token, children:childrenIn} = &children[0] {
+                                // println!("\n left: {:?}", get_name(&token));
+                                let tokenRight = children[1].clone();
+                                // println!(" right: {:?}", tokenRight);
+                                // println!(" right: {}", evaluate_r_value(tokenRight, context));
+                                // println!(" {} -> {}", get_name(&token), evaluate_r_value(tokenRight, context));
+                                mode = 1;
+                                obj.insert(get_name(&token), evaluate_r_value(tokenRight, context));
+                                // println!(" token obj?: {:?}, \n children: {:?} \n\n", token, children)å;
+                                
+                            }}
+                        }
+                        items.push(evaluate_r_value(i, context))
+                    }
+                    if mode == 1{
+                        return SimData::createObject(obj);
+                    }
+                    return SimData::createVector(items);
+                }
+                else{
+                    process::exit(12);
+                }
             },
             Token::MathSign(name, level) => {
                 if *name == "+" {
@@ -1554,11 +1588,11 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                             panic!("invalid expression");
                         }
                     }else if let Token::Name(name, _) = right.token {
-                        println!("field name {:?}", name);
+                        // println!("field name {:?}", name);
                         // println!("object {:?}", leftObj);
                         match (leftObj.clone(), name.as_str()) {
                             (data, "type") => {
-                                print!("getting type of {:?} -> {:?}", data, SimData::String(data.clone().dataTypeName()));
+                                // print!("getting type of {:?} -> {:?}", data, SimData::String(data.clone().dataTypeName()));
                                 return SimData::String(data.dataTypeName());
                             },
                             (SimData::Vector(ref v), "length") => {
@@ -1580,8 +1614,13 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
             Token::SpecialSign(name, level) => {},
             Token::Bracket(name, level) => {
                 if *name=='[' {
+                    // println!("parsing [");
                     let mut items: Vec<SimData> = vec![];
+                    let mut obj:HashMap<String, SimData> = HashMap::new();
                     for i in children {
+                        if let TokenTreeRec{ref token, ref children} = i {
+                            // println!("token obj?: {:?}", token);
+                        }
                         items.push(evaluate_r_value(i, context))
                     }
                     return SimData::createVector(items);
@@ -1595,6 +1634,7 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                 if(context.has(get_name(&tokenRight))){
                     return context.get(get_name(&tokenRight))
                 }
+                warn!("Variable {} not defined and will be interpreted as Null", get_name(&tokenRight) );
             },
         };
         // if get_type(&tokenRight) == "Number" {
@@ -1633,6 +1673,7 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
         if let TokenTreeRec{ref token, ref children} = i {
             let name = get_name(&token);
             if(name=="="){
+                // println!("evaluation equation {:?}  = {:?}", &children[0], &children[1]);
                 if let TokenTreeRec{token:tokenLeft, children:leftChildren} = &children[0]{
                     if let Token::Name(name, _) = &tokenLeft {
                         let name = get_name(&tokenLeft);
@@ -1640,17 +1681,17 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
                         value = evaluate_r_value(children[1].clone(), context);
                         context.set(name, value)
                     } else if let Token::MathSign(name, _) = &tokenLeft {
-                        println!("Left token is math sign");
+                        // println!("Left token is math sign");
                         if name == "." {
                             // panic!("dot children 0 is: {:?}", children[0].children[1]);
-                            println!("Sign is .");
+                            // println!("Sign is .");
                             let vector_name = get_name(&children[0].children[0].clone().token);
-                            println!("vector name: {:?}", vector_name);
-                            println!("vector data: {:?}", evaluate_r_value(children[0].children[0].clone(), context));
+                            // println!("vector name: {:?}", vector_name);
+                            // println!("vector data: {:?}", evaluate_r_value(children[0].children[0].clone(), context));
                             let index = evaluate_r_value(children[0].children[1].children[0].clone(), context);
-                            println!("index: {:?}",  index);
+                            // println!("index: {:?}",  index);
                             let value = evaluate_r_value(children[1].clone(), context);
-                            println!("new value: {:?}", value);
+                            // println!("new value: {:?}", value);
                             let oldVector = &mut context.get(vector_name.clone());
                             // oldVector.setValueByIndex(index., value);
                             oldVector.setValueByIndex(index.readFloat().round() as i64 as usize, value);
@@ -1668,52 +1709,51 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
                 }
             } 
             else if (name=="if"){
-                println!("");
                 
                 // condition
-                println!("condition:");
-                println!("{:?}",i.clone().children[0].children[0]);
-                println!("valuated: ");
+                // println!("condition:");
+                // println!("{:?}",i.clone().children[0].children[0]);
+                // println!("valuated: ");
                 let mut res = evaluate_r_value(i.children[0].children[0].clone(), context);
-                println!("{:?}",res);
-                println!("");
+                // println!("{:?}",res);
+                // println!("");
 
                 // body
-                println!("body:");
-                println!("{:?}",i.clone().children[1]);
+                // println!("body:");
+                // println!("{:?}",i.clone().children[1]);
                 if (res.readBool()) {
                     execute_tree(context, i.children[1].clone());
                 }
 
-                println!("");
-                println!("");
+                // println!("");
+                // println!("");
                 // panic!("condition under construction")
             }
             else if (name=="while"){
-                println!("");
+                // println!("");
                 
                 // condition
-                println!("condition:");
-                println!("{:?}",i.clone().children[0].children[0]);
-                println!("valuated: ");
+                // println!("condition:");
+                // println!("{:?}",i.clone().children[0].children[0]);
+                // println!("valuated: ");
                 let mut res = evaluate_r_value(i.children[0].children[0].clone(), context);
-                println!("{:?}",res);
-                println!("");
+                // println!("{:?}",res);
+                // println!("");
 
                 // body
-                println!("body:");
-                println!("{:?}",i.clone().children[1]);
+                // println!("body:");
+                // println!("{:?}",i.clone().children[1]);
                 while (res.readBool()) {
                     execute_tree(context, i.children[1].clone());
-                    println!("valuated: ");
+                    // println!("valuated: ");
                     res = evaluate_r_value(i.children[0].children[0].clone(), context);
-                    println!("{:?}",res);
-                    println!("");
+                    // println!("{:?}",res);
+                    // println!("");
     
                 }
 
-                println!("");
-                println!("");
+                // println!("");
+                // println!("");
                 // panic!("condition under construction")
             }
             else{
@@ -1766,8 +1806,6 @@ fn testExecution(){
                 eeeeeeeeeeeeeee = 5/3
             }
         }
-     */
-    let code =r#"
 
         ar = [
             11 
@@ -1799,7 +1837,6 @@ fn testExecution(){
             ]
         ]
 
-        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 0.693 1.414 1.732 0.618]
         sl = sorted.length
         i = 0
         sum = 0
@@ -1812,6 +1849,7 @@ fn testExecution(){
         s = 0
 
 
+        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 0.693 1.414 1.732 0.618]
         repeats = 0
         while (k < sorted.length){
             k = k + 1
@@ -1851,7 +1889,133 @@ fn testExecution(){
         sizeType = size.type
         arType = ar.type
         pairType = pair.type
+
+
+        y = [ 
+            xx = 9 
+            yy = [ 0 ]
+            kk = [ 2 0 ]
+            dd = [ s = 0 ]
+            ololo = 2
+        ]
+
+        d = [ 1 2 3 4 [ 1 2 3 ] [ 0 ] [ x = [ 0 ] ] ]
+        ys = [ 
+            s =  2 - 1 
+            d = d
+        ]
+        k = [ 9 0 ]
+        
+     */
+    let code =r#"
+
+        data = [    
+            id = 1    
+            sharedInterests = [ 5 6 9 ]   
+        ]
+
+
+        o = [ x  0 ]
+
+        matrix = [
+            row1 = [ 1 2 3 ]
+            row2 = [ 4 5 6 ]
+            row3 = [ 7 8 9 ]
+            properties = [
+                determinant = 0
+                isSymmetric = [ 0 ]
+                isInvertible = [ 0 ]
+            ]
+        ]
+
+        settings = [
+            window = [
+                width = 800
+                height = 600
+                position = [ 100 200 ]
+            ]
+            theme = [
+                primaryColor = [ 23 56 98 ]
+                secondaryColor = [ 245 245 245 ]
+            ]
+            preferences = [
+                notifications = [ 0 ]
+                language = [ 69 110 103 108 105 115 104 ]
+            ]
+        ]
+
+        data = [    
+            id = 1   
+            name = [ 74 111 104 110 ]
+            age = 30
+            scores = [ 100 90 80 ]
+            friends = [        
+                friend1 = [            
+                    id = 2            
+                    shared_interests = [ 3 5 7 ]
+                ]
+                friend2 = [            
+                    id = 3            
+                    shared_interests = [ 1 5 6 ]
+                ]
+            ]
+        ]
+
+        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 0.693 1.414 1.732 0.618]
+        s = 0
+        k = 0
+        repeats = 0
+
+        while (k < sorted.length) {
+            s = 0
+            while (s < sorted.length-1){
+                if (sorted.(s) > sorted.(s+1)) {
+                    temp = sorted.(s)
+                    sorted.(s) = sorted.(s+1)
+                    sorted.(s+1) = temp
+                }
+                repeats = repeats+1
+                s = s + 1
+            }
+            k = k + 1
+        }
+
+        q = 0
+        d = 7 + q
+        s = l
+
     "#;
+    /*
+    
+
+        matrix = [
+            row1 = [ 1 2 3 ]
+            row2 = [ 4 5 6 ]
+            row3 = [ 7 8 9 ]
+            properties = [
+                determinant = 0
+                is_symmetric = [ 0 ]
+                is_invertible = [ 0 ]
+            ]
+        ]
+
+        settings = [
+            window = [
+                width = 800
+                height = 600
+                position = [ 100 200 ]
+            ]
+            theme = [
+                primary_color = [ 23 56 98 ]
+                secondary_color = [ 245 245 245 ]
+            ]
+            preferences = [
+                notifications = [ 0 ]
+                language = [ 69 110 103 108 105 115 104 ]
+            ]
+   
+        ]
+ */
 
     let mut parent = ContextScope::new();
     parent.set(
@@ -1873,10 +2037,13 @@ fn testExecution(){
 
     let mut tokenTreeRec = process_tokens(&tokens);
 
+    // print!("{:?}", tokenTreeRec);
+    // panic!("tree only mode");
+
     while hasLevel(tokenTreeRec.clone(), 2) {
         tokenTreeRec = process_tokens_tree(tokenTreeRec);
-        println!("1st step");
-        println!("{:#?}", tokenTreeRec);
+        // println!("1st step");
+        // println!("{:#?}", tokenTreeRec);
     }
 
     (_, tokenTreeRec) = nestAdjascents(tokenTreeRec.clone());
@@ -1915,8 +2082,8 @@ fn testExecution(){
         }
     }
 
-    println!("ended");
-    println!("{:#?}", tokenTreeRec);
+    println!("Token tree generated");
+    // println!("{:#?}", tokenTreeRec);
 
     let mut currentContext = parent;
 
@@ -1927,11 +2094,10 @@ fn testExecution(){
     // }
     let context_ref = currentContext.context.borrow();
     
-    println!();
     println!("============ Execution results: =============================");
 
     for (name, data) in context_ref.iter() {
-        println!("{} -> {:?}", name, data);
+        println!("{} -> {:#?}", name, data);
     }
     // context_ref.get(k)
 
@@ -1939,6 +2105,11 @@ fn testExecution(){
 }
 
 fn main() {
+    SimpleLogger::new()
+        .with_level(log::LevelFilter::Debug) // Set the minimum log level
+        .init()
+        .unwrap();
+
     // let input =
     //     r#"
     //     testV = 3
