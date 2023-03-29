@@ -1961,33 +1961,63 @@ fn testExecution(){
             ]
         ]
 
-        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 2007 643 0.693 1.414 1.732 0.618]
+        sorted = [3.14 2.718 1.618 1.732 0.577 100 2.303 2007 643 0.693 1.414 1.732 0.618]
         s = 0
         k = 0
         repeats = 0
 
 
-        i = 0
-        while (i < sorted.length - 1) {
-            minIndex = i
-            j = i + 1
+        stackSize = sorted.length
+        stack = [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
+        
 
-            while (j < sorted.length) {
-                if (sorted.(minIndex) > sorted.(j)) {
-                    minIndex = j
+        top = 0-1
+        
+        top = top + 1
+        stack.(top) = 0
+        top = top + 1
+        stack.(top) = sorted.length - 1
+        
+        while (top >= 0) {
+            high = stack.(top)
+            top = top - 1
+            low = stack.(top)
+            top = top - 1
+        
+            i = low - 1
+            pivot = sorted.(high)
+        
+            j = low
+            while (j <= high - 1) {
+                if (sorted.(j) <= pivot) {
+                    i = i + 1
+        
+                    temp = sorted.(i)
+                    sorted.(i) = sorted.(j)
+                    sorted.(j) = temp
                 }
                 j = j + 1
             }
-
-            if (minIndex != i) {
-                temp = sorted.(i)
-                sorted.(i) = sorted.(minIndex)
-                sorted.(minIndex) = temp
+        
+            temp = sorted.(i + 1)
+            sorted.(i + 1) = sorted.(high)
+            sorted.(high) = temp
+            pi = i + 1
+        
+            if (pi - 1 > low) {
+                top = top + 1
+                stack.(top) = low
+                top = top + 1
+                stack.(top) = pi - 1
             }
-
-            i = i + 1
+        
+            if (pi + 1 < high) {
+                top = top + 1
+                stack.(top) = pi + 1
+                top = top + 1
+                stack.(top) = high
+            }
         }
-
         
 
         q = 0
