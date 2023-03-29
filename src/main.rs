@@ -1961,24 +1961,34 @@ fn testExecution(){
             ]
         ]
 
-        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 0.693 1.414 1.732 0.618]
+        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 2007 643 0.693 1.414 1.732 0.618]
         s = 0
         k = 0
         repeats = 0
 
-        while (k < sorted.length) {
-            s = 0
-            while (s < sorted.length-1){
-                if (sorted.(s) > sorted.(s+1)) {
-                    temp = sorted.(s)
-                    sorted.(s) = sorted.(s+1)
-                    sorted.(s+1) = temp
+
+        i = 0
+        while (i < sorted.length - 1) {
+            minIndex = i
+            j = i + 1
+
+            while (j < sorted.length) {
+                if (sorted.(minIndex) > sorted.(j)) {
+                    minIndex = j
                 }
-                repeats = repeats+1
-                s = s + 1
+                j = j + 1
             }
-            k = k + 1
+
+            if (minIndex != i) {
+                temp = sorted.(i)
+                sorted.(i) = sorted.(minIndex)
+                sorted.(minIndex) = temp
+            }
+
+            i = i + 1
         }
+
+        
 
         q = 0
         d = 7 + q
