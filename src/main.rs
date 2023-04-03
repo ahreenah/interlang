@@ -1095,6 +1095,7 @@ impl SimData{
 #[derive(Clone)]
 struct ContextScope {
     context: Rc<RefCell<HashMap<String, SimData>>>,
+    links: RefCell<HashMap<String, String>>,
     parent_scope: Option<Rc<ContextScope>>,
 }
 
@@ -1102,6 +1103,7 @@ impl ContextScope {
     fn new() -> ContextScope {
         ContextScope {
             context: Rc::new(RefCell::new(HashMap::new())),
+            links: RefCell::new(HashMap::new()),
             parent_scope: None,
         }
     }
@@ -1109,34 +1111,28 @@ impl ContextScope {
     fn extend(&self) -> ContextScope {
         ContextScope {
             context: Rc::new(RefCell::new(HashMap::new())),
+            links: RefCell::new(HashMap::new()),
             parent_scope: Some(Rc::new(self.clone())),
         }
     }
 
+    fn add_link(&self, local_name: String, parent_name: String) {
+        self.links.borrow_mut().insert(local_name, parent_name);
+    }
+
     fn set(&self, name: String, value: SimData) {
-        let mut current_scope = self;
-        // while let Some(scope) = &current_scope.parent_scope {
-        //     if let Some(var) = scope.context.borrow().get(&name) {
-        //         scope.context.borrow_mut().insert(name.clone(), value);
-        //         return;
-        //     }
-        //     current_scope = scope;
-        // }
-        // if let Some(parent_scope) = &self.parent_scope {
-        //     if parent_scope.get(name.clone()).is_some() {
-        //         parent_scope.set(name.clone(), value.clone());
-        //     }
-        // }
-        
-        // let context = self.context.borrow();
-        // if let Some(_) = context.get(&name) {
+        if let Some(parent_name) = self.links.borrow().get(&name) {
+            if let Some(parent_scope) = &self.parent_scope {
+                parent_scope.set(parent_name.clone(), value);
+            }
+        } else {
             self.context.borrow_mut().insert(name, value);
-        // }
+        }
+        // let mut current_scope = self;
         // self.context.borrow_mut().insert(name, value);
     }
 
     fn pset(&self, name: String, value: SimData){
-
         if let Some(parent_scope) = &self.parent_scope {
             if parent_scope.has(name.clone()){
                 parent_scope.pset(name.clone(), value)
@@ -1151,10 +1147,11 @@ impl ContextScope {
 
     fn has(&self, name: String) -> bool {
         
-        let context_ref = self.context.borrow();
-        if let Some(value) = context_ref.get(&name) {
+        if self.context.borrow().contains_key(&name) || self.links.borrow().contains_key(&name) {
             true
-        }else{false}
+        } else {
+            false
+        }
     }
 
     fn get(&self, name: String) -> SimData {
@@ -1162,19 +1159,17 @@ impl ContextScope {
             return value.clone();
         }
 
+        if let Some(parent_name) = self.links.borrow().get(&name) {
+            if let Some(parent_scope) = &self.parent_scope {
+                return parent_scope.get(parent_name.clone());
+            }
+        }
+
         if let Some(parent_scope) = &self.parent_scope {
             return parent_scope.get(name);
         }
 
         SimData::createNull()
-        // let context_ref = self.context.borrow();
-        // if let Some(value) = context_ref.get(&name) {
-        //     *value
-        // } else if let Some(parent_scope) = &self.parent_scope {
-        //     parent_scope.get(name)
-        // } else {
-        //     panic!("Variable not found: {}", name);
-        // }
     }
 }
 
@@ -1253,10 +1248,14 @@ fn testContext(){
 
     let mut parent = ContextScope::new();
     parent.set(String::from("x".to_string()), SimData::createFloat(1.0));
+    parent.set(String::from("data1".to_string()), SimData::createFloat(11.0));
 
     println!("Before set in parent (expect 1): parent.x={}",parent.get("x".to_string()));
+    println!("Before set in parent (expect Null): parent.data1={}",parent.get("data1".to_string())); 
 
     let mut child = parent.extend();
+    child.add_link("localData".to_string(), "data1".to_string());
+    println!("Before set in child (expect 11): child.localData={}",child.get("localData".to_string())); 
     
     println!("Before set in child (expect 1): child.x={}",child.get("x".to_string()));
 
@@ -1273,11 +1272,17 @@ fn testContext(){
         SimData::createFloat(8.0)  //8
     );
 
+    child.pset("localData".to_string(), SimData::Float(2007.0));
+
+
 
     println!("After set in child (expect 7): child.x={}",child.get("x".to_string()));
     println!("After set in child (expect 8): child.y={}",child.get("y".to_string()));
     println!("After set in parent (expect 7): parent.x={}",parent.get("x".to_string()));
     println!("After set in parent (expect Null): parent.y={}",parent.get("y".to_string())); 
+    println!("After set in parent (expect 11): parent.data1={}",parent.get("data1".to_string())); 
+    println!("Before set in parent (expect Null): parent.data1={}",parent.get("data1".to_string())); 
+    println!("After set in child (expect 11): child.localData={}",child.get("localData".to_string())); 
 
     let mut root = ContextScope::new();
     root.set("a".to_string(), SimData::createFloat(2.0));
@@ -2237,9 +2242,9 @@ fn main() {
     // println!("================================================================");
 
 
-    testContext();
-
 
     testExecution();
+
+    testContext();
 
 }
