@@ -1915,6 +1915,8 @@ fn testExecution(){
         ]
 
 
+        dataid = data.sharedInterests.length
+
         o = [ x  0 ]
 
         matrix = [
