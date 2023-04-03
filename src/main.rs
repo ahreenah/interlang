@@ -1492,7 +1492,7 @@ fn get_names(tokens: Vec<TokenTreeRec>) -> Vec<String> {
     names
 }
 
-fn execute_func_call(func_obj:SimData, args:Vec<SimData>, parentContext:&mut ContextScope){
+fn execute_func_call(func_obj:SimData, args:Vec<SimData>, parentContext:&mut ContextScope) -> SimData {
     let mut context = parentContext.extend();
     if let SimData::Function(ref argNames, ref body) = func_obj {
         println!( "{:?} -> {:?}", argNames, args);
@@ -1502,9 +1502,23 @@ fn execute_func_call(func_obj:SimData, args:Vec<SimData>, parentContext:&mut Con
         for (i, argName) in argNames.iter().enumerate() {
             context.set(argName.to_string(), args[i].clone())
         }
+        println!("body: {:?}", body[0]);
+        return execute_tree(&mut context, TokenTreeRec{children:body.clone(), token:Token::Keyword("Code".to_string(), 1)});
+
+        // println!(
+        //     "Function execution finished"
+        // );
+        // for (name, data) in context.context.borrow().iter() {
+        //     println!("{} -> {:#?}", name, data);
+        // }
+        
+        // for command in body {
+        //     execute_tree(&mut context, command.clone());
+        // }
     } else {
         error!("not callable");
     }
+    SimData::Null
 }
 
 fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimData{
@@ -1578,8 +1592,8 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                     println!("function name: {:?}", funcName);
                     println!("function args: {:?}", argValues); 
                     println!("function obj: {:?}", context.get(funcName.clone()));
-                    execute_func_call(context.get(funcName.clone()).clone(), argValues, context);
-                    process::exit(12);
+                    return execute_func_call(context.get(funcName.clone()).clone(), argValues, context);
+                    // process::exit(12);
                 }
 
                 else{
@@ -1735,7 +1749,7 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
     return SimData::Null
 }
 
-fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
+fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec) -> SimData{
     
     for i in tokenTreeRec.clone().children {
         if let TokenTreeRec{ref token, ref children} = i {
@@ -1825,11 +1839,18 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
                 // println!("");
                 // panic!("condition under construction")
             }
+            else if (name=="return"){
+                println!("returning: {:#?}", i);
+                println!("return value: {:#?}", evaluate_r_value(i.children[0].clone(), context));
+                return evaluate_r_value(i.children[0].clone(), context);
+                error!("return not implemented");
+            }
             else{
-                println!("Unknown action: {}", name);
+                error!("Unknown action: {}", name);
             }
         }
     }
+    SimData::Null
 
 }
 
@@ -1974,13 +1995,31 @@ fn testExecution(){
 
     f = func(x y){
         s = x
+        k = y
+        return (k + s)
+    }
+
+    twice = func(x u){
+        s = x
         return (s + x)
+    }
+
+    applyTwice = func(fun arg){
+        x = fun(fun( arg 0 ) 0)
+        return ( x + 0 )
     }
 
     s = 1
 
-    d = f(s+s 7)
+    d = 0
+    d = f(s+s 8)
 
+    m = 9
+
+    m2 = twice(m 0)
+    m221 = twice(twice(m 0) 0)
+    m222 = twice(m2 0)
+    es = applyTwice(twice 11)
 
     "#;
     /*
