@@ -2041,6 +2041,12 @@ fn testExecution(){
         i = i + 1
     }
 
+    modifier = func (array index value) {
+        array.(index) = value
+    } 
+
+    modifier ( fibarr 3 2007 ) # array is not changed since all objects are immutable
+
     s1 = fib ( 3 ) + fib ( 2 )
 
     "#;
