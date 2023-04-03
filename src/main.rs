@@ -732,7 +732,8 @@ enum SimDataType {
     Object,
     Bool,
     Error,
-    Null
+    Null,
+    Function
 }
 
 // #[derive(Clone)]
@@ -785,6 +786,7 @@ enum SimData {
     String(String),
     Object(HashMap<String, SimData>),
     Error(String),
+    Function(Vec<String>,Vec<TokenTreeRec>)
 }
 
 
@@ -853,6 +855,7 @@ impl SimData{
             SimData::Bool(_) => "Bool".to_string(),
             SimData::Error(_) => "Error".to_string(),
             SimData::String(_) => "String".to_string(),
+            SimData::Function(_, _) => "Function".to_string(),
             SimData::Null => "Null".to_string()
         }
     }
@@ -1475,6 +1478,35 @@ fn testContext(){
     
 }
 
+fn get_names(tokens: Vec<TokenTreeRec>) -> Vec<String> {
+    let mut names = Vec::new();
+    for token in tokens {
+        match token.token {
+            Token::Name(name, _) => names.push(name),
+            _ => {
+                // Recursively check children for names
+                // names.append(&mut get_names(token.children));
+            }
+        }
+    }
+    names
+}
+
+fn execute_func_call(func_obj:SimData, args:Vec<SimData>, parentContext:&mut ContextScope){
+    let mut context = parentContext.extend();
+    if let SimData::Function(ref argNames, ref body) = func_obj {
+        println!( "{:?} -> {:?}", argNames, args);
+        if argNames.len() != args.len(){
+            error!("expected {} arguments, but got {}", argNames.len(), args.len() )
+        }
+        for (i, argName) in argNames.iter().enumerate() {
+            context.set(argName.to_string(), args[i].clone())
+        }
+    } else {
+        error!("not callable");
+    }
+}
+
 fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimData{
     if let TokenTreeRec{token:ref tokenRight, children:children} = tokenTree{
         // println!("name is {} {}", get_name(tokenRight), get_type(tokenRight));
@@ -1487,7 +1519,7 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                     return evaluate_r_value(children.clone()[0].clone(), context)
                 }
 
-                if *name=="[" {
+                else if *name=="[" {
                     // println!("parsing [ top");
                     let mut items: Vec<SimData> = vec![];
                     let mut obj:HashMap<String, SimData> = HashMap::new();
@@ -1515,7 +1547,43 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                     }
                     return SimData::createVector(items);
                 }
+
+                else if *name=="func" {
+                    println!("func found {:#?}", children);
+
+                    println!("args: {:#?}", get_names(children[0].children.clone()) );
+                    println!("body: {:#?}", children[1].children );
+                    return SimData::Function(get_names(children[0].children.clone()) ,children[1].children.clone() );
+                    process::exit(90);
+                }
+
+                // function call execution
+                else if name=="FunctionCall"{
+                    let functionTTR = children[0].clone();
+                    let mut funcName="".to_string();
+                    let mut argValues:Vec<SimData> = vec![];
+                    println!("found function call :: {:?} {:?}", functionTTR, children);
+                    if let TokenTreeRec { token:functionToken, children:functionChildren } = functionTTR.clone(){
+                        // if let Token{name:functionName} = functionToken{
+                            if let Token::Name(name, _) = functionToken{
+                                funcName = name;
+                            }
+                        // }
+                    }
+                    let mut i = 1;
+                    while i < children.len(){
+                        argValues.push(evaluate_r_value(children[i].clone(), context));
+                        i += 1;
+                    }
+                    println!("function name: {:?}", funcName);
+                    println!("function args: {:?}", argValues); 
+                    println!("function obj: {:?}", context.get(funcName.clone()));
+                    execute_func_call(context.get(funcName.clone()).clone(), argValues, context);
+                    process::exit(12);
+                }
+
                 else{
+                    error!("unknown rvalue type :: {:?}", tokenRight);
                     process::exit(12);
                 }
             },
@@ -1678,6 +1746,7 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec){
                     if let Token::Name(name, _) = &tokenLeft {
                         let name = get_name(&tokenLeft);
                         let mut value;
+                        println!("lookup right for left= {}",name);
                         value = evaluate_r_value(children[1].clone(), context);
                         context.set(name, value)
                     } else if let Token::MathSign(name, _) = &tokenLeft {
@@ -1772,142 +1841,11 @@ fn testExecution(){
     println!("================================================================");
     /*
     
-    
-        varA = 1.5 + 0.75 - 0.25
-        varB = 4 * 9 / 9
-        text = 6.79
-        testz = 4.5 / 3 - 0.5
-        testy = 5.25 - 1.5 * 2 - 9 * 7
-        testk = 6.75 / 1.5 + 0.25
-        terf = varB
-
-        varA = 2.0
-        varB = 3.0
-        varC = 2 * (2 + 1.0)
-        varD = varC / 2.0 - varA
-
-        xA = (5 + 3) * 4 / 2
-        xB = (6 - 2) * (7 + 1) / 4
-        xC = 2 * (3 + 4) - 5 / 2
-        xD = ((2 + 3) * 4 + 7) / 5
-        x1E = 6 > 9 - (3 - 1)
-        x2E = 6 >= 9 - 3
-        x3E = 6 <= 9 - 3
-        x4E = 6 < 9 - 3
-        x5e = 6 == 9 - 3
-        x6e = 6 != 9 - 3
-    
-        if( xA  > 10 + 5 ){
-            asdasdsadas = 2 + 9
-            if( xA  > 10 + 6 ){
-                qqqqqqqqqqqqqqq = 2 + 9
-            }
-            if( xA  > 10 + 4 ){
-                eeeeeeeeeeeeeee = 5/3
-            }
+        e = func(x y ){
+            return x * 2
         }
 
-        ar = [
-            11 
-            2 
-            [
-                3
-                9
-            ]
-            [
-                1
-                [
-                    2
-                    [
-                        3
-                    ]
-                    [
-                        1
-                    ]
-                ]
-            ]
-            x6e
-            varA
-            [
-                [
-                    [
-                        x5e
-                    ]
-                ]
-            ]
-        ]
-
-        sl = sorted.length
-        i = 0
-        sum = 0
-        while (i<19){
-            sum = sum + sorted.(i)
-            i = i + 1
-        }
-
-        k = 0
-        s = 0
-
-
-        sorted = [3.14 2.718 1.618 1.732 0.577 2.303 0.693 1.414 1.732 0.618]
-        repeats = 0
-        while (k < sorted.length){
-            k = k + 1
-            s = 0
-            while (s < sorted.length-1){
-                if (sorted.(s) > sorted.(s+1)) {
-                    temp = sorted.(s)
-                    sorted.(s) = sorted.(s+1)
-                    sorted.(s+1) = temp
-                }
-                repeats = repeats+1
-                s = s + 1
-            }
-        }
-
-
-        br = []
-        cr = [1]
-        dr = [2+2]
-
-
-
-        decount = 12
-        while ( decount > 5 ) {
-            decount = decount - 2
-        }
-
-        ka = ar.(0)
-        kb = ar.(2-1)
-        kc = ar.(ar.(2-1)).(0)
-
-        fi = pair.first
-        si = pair.second
-        ti = pair.third
-        length = pair.length
-        size = pair.length.size
-        sizeType = size.type
-        arType = ar.type
-        pairType = pair.type
-
-
-        y = [ 
-            xx = 9 
-            yy = [ 0 ]
-            kk = [ 2 0 ]
-            dd = [ s = 0 ]
-            ololo = 2
-        ]
-
-        d = [ 1 2 3 4 [ 1 2 3 ] [ 0 ] [ x = [ 0 ] ] ]
-        ys = [ 
-            s =  2 - 1 
-            d = d
-        ]
-        k = [ 9 0 ]
         
-     */
-    let code =r#"
 
         data = [    
             id = 1    
@@ -2025,6 +1963,24 @@ fn testExecution(){
         q = 0
         d = 7 + q
         s = l
+    
+     */
+    let code =r#"
+    data = [    
+        id = 1    
+        sharedInterests = [ 5 6 9 ]   
+    ]
+
+
+    f = func(x y){
+        s = x
+        return (s + x)
+    }
+
+    s = 1
+
+    d = f(s+s 7)
+
 
     "#;
     /*
@@ -2125,7 +2081,9 @@ fn testExecution(){
     }
 
     println!("Token tree generated");
-    // println!("{:#?}", tokenTreeRec);
+    println!("{:#?}", tokenTreeRec);
+
+    // process::exit(2007);
 
     let mut currentContext = parent;
 
