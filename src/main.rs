@@ -1522,8 +1522,9 @@ fn execute_func_call(func_obj:SimData, args:Vec<SimData>, parentContext:&mut Con
 }
 
 fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimData{
+    println!("token is: {:?}", tokenTree.clone());
     if let TokenTreeRec{token:ref tokenRight, children:children} = tokenTree{
-        // println!("name is {} {}", get_name(tokenRight), get_type(tokenRight));
+        println!("name is {} {}", get_name(tokenRight), get_type(tokenRight));
         match tokenRight {
             Token::Number(name, level) => {
                 return SimData::Float(get_number(&tokenRight));
@@ -1706,6 +1707,18 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                         items.push(evaluate_r_value(i, context))
                     }
                     return SimData::createVector(items);
+                }
+                else if *name=='(' {
+                    // println!("parsing [");
+                    // let mut items: Vec<SimData> = vec![];
+                    // let mut obj:HashMap<String, SimData> = HashMap::new();
+                    // for i in children {
+                    //     if let TokenTreeRec{ref token, ref children} = i {
+                    //         // println!("token obj?: {:?}", token);
+                    //     }
+                    //     items.push(evaluate_r_value(i, context))
+                    // }
+                    return evaluate_r_value(children[0].clone(), context);
                 }
                 else{
                     process::exit(12);
@@ -2002,52 +2015,12 @@ fn testExecution(){
 
 
     f = func(x){
-        if ( x > 100 ) {
-            return ( x + 9 )
-        }
-        if ( x > 50 ) {
-            return ( 90+0 )
-        }
-        if (x > 20 ) {
-            if ( x > 10 ) {
-                return (2 * x)
-            }
-            return ( x - 9 )
-        }
-        return ( x + 2 )
+        t = x * 2
+        return ( t )
     }
 
-    fib = func (x) {
-        if ( x < 3 ) {
-            return ( 1 + 0 )
-        }
-        vpa = fib ( x - 1 )
-        vpb = fib ( x - 2 )
-        return ( vpa + vpb  )
-    }
-
-    es2 = f ( 70 )
-    es = f ( 101 )
-    es3 = f ( 9 )
-    es4 = f ( 27 )
-    es5 = f ( 14 )
-
-    const fibarr = [ 0 0 0 0 0 0 0 0 0 0 ]
-    
-    i = 1
-    
-    while (i < fibarr.length ) {
-        fibarr.(i) = fib ( i + 1 )
-        i = i + 1
-    }
-
-    modifier = func (array index value) {
-        array.(index) = value
-    } 
-
-    modifier ( fibarr 3 2007 ) # array is not changed since all objects are immutable
-
-    s1 = fib ( 3 ) + fib ( 2 )
+    s1 = f ( 1999999999 )
+    p = s1
 
     "#;
     /*
