@@ -2017,11 +2017,31 @@ fn testExecution(){
         return ( x + 2 )
     }
 
+    fib = func (x) {
+        if ( x < 3 ) {
+            return ( 1 + 0 )
+        }
+        vpa = fib ( x - 1 )
+        vpb = fib ( x - 2 )
+        return ( vpa + vpb  )
+    }
+
     es2 = f ( 70 )
     es = f ( 101 )
     es3 = f ( 9 )
     es4 = f ( 27 )
     es5 = f ( 14 )
+
+    const fibarr = [ 0 0 0 0 0 0 0 0 0 0 ]
+    
+    i = 1
+    
+    while (i < fibarr.length ) {
+        fibarr.(i) = fib ( i + 1 )
+        i = i + 1
+    }
+
+    s1 = fib ( 3 ) + fib ( 2 )
 
     "#;
     /*
