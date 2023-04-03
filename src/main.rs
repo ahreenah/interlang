@@ -1803,9 +1803,16 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec) -> SimData
 
                 // body
                 // println!("body:");
-                // println!("{:?}",i.clone().children[1]);
+                println!("if cond:\n\n{:?}\n\n",i.clone().children[0]);
+                // panic!("if  condition value:\n\n{}\n\n", res.readBool());
                 if (res.readBool()) {
-                    execute_tree(context, i.children[1].clone());
+                    let exec_res = execute_tree(context, i.children[1].clone());
+                    match exec_res{
+                        SimData::Null =>{ },
+                        _=>{
+                            return exec_res;
+                        }
+                    }
                 }
 
                 // println!("");
@@ -1827,6 +1834,7 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec) -> SimData
                 // println!("body:");
                 // println!("{:?}",i.clone().children[1]);
                 while (res.readBool()) {
+
                     execute_tree(context, i.children[1].clone());
                     // println!("valuated: ");
                     res = evaluate_r_value(i.children[0].children[0].clone(), context);
@@ -1993,33 +2001,27 @@ fn testExecution(){
     ]
 
 
-    f = func(x y){
-        s = x
-        k = y
-        return (k + s)
+    f = func(x){
+        if ( x > 100 ) {
+            return ( x + 9 )
+        }
+        if ( x > 50 ) {
+            return ( 90+0 )
+        }
+        if (x > 20 ) {
+            if ( x > 10 ) {
+                return (2 * x)
+            }
+            return ( x - 9 )
+        }
+        return ( x + 2 )
     }
 
-    twice = func(x u){
-        s = x
-        return (s + x)
-    }
-
-    applyTwice = func(fun arg){
-        x = fun(fun( arg 0 ) 0)
-        return ( x + 0 )
-    }
-
-    s = 1
-
-    d = 0
-    d = f(s+s 8)
-
-    m = 9
-
-    m2 = twice(m 0)
-    m221 = twice(twice(m 0) 0)
-    m222 = twice(m2 0)
-    es = applyTwice(twice 11)
+    es2 = f ( 70 )
+    es = f ( 101 )
+    es3 = f ( 9 )
+    es4 = f ( 27 )
+    es5 = f ( 14 )
 
     "#;
     /*
