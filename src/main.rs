@@ -1281,7 +1281,6 @@ fn testContext(){
     println!("After set in parent (expect 7): parent.x={}",parent.get("x".to_string()));
     println!("After set in parent (expect Null): parent.y={}",parent.get("y".to_string())); 
     println!("After set in parent (expect 11): parent.data1={}",parent.get("data1".to_string())); 
-    println!("Before set in parent (expect Null): parent.data1={}",parent.get("data1".to_string())); 
     println!("After set in child (expect 11): child.localData={}",child.get("localData".to_string())); 
 
     let mut root = ContextScope::new();
@@ -2018,13 +2017,15 @@ fn testExecution(){
         sharedInterests = [ 5 6 9 ]   
     ]
 
+    k = 11
 
     f = func(x){
         t = x * 2
-        return ( t )
+        k = 9
+        return ( t  + k )
     }
 
-    s1 = f ( 1999999999 )
+    s1 = f ( 2 )
     p = s1
 
     "#;
@@ -2242,9 +2243,9 @@ fn main() {
     // println!("================================================================");
 
 
+    testContext();
 
     testExecution();
 
-    testContext();
 
 }
