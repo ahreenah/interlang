@@ -1787,15 +1787,42 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec) -> SimData
                             // println!("Sign is .");
                             let vector_name = get_name(&children[0].children[0].clone().token);
                             // println!("vector name: {:?}", vector_name);
-                            // println!("vector data: {:?}", evaluate_r_value(children[0].children[0].clone(), context));
-                            let index = evaluate_r_value(children[0].children[1].children[0].clone(), context);
-                            // println!("index: {:?}",  index);
-                            let value = evaluate_r_value(children[1].clone(), context);
-                            // println!("new value: {:?}", value);
-                            let oldVector = &mut context.get(vector_name.clone());
-                            // oldVector.setValueByIndex(index., value);
-                            oldVector.setValueByIndex(index.readFloat().round() as i64 as usize, value);
-                            context.set(vector_name, oldVector.clone());
+                            println!("vector data: {:?}", evaluate_r_value(children[0].children[0].clone(), context));
+                            println!("index {:?}", children[0].children[1].clone());
+                            match children[0].children[1].clone() {
+                                TokenTreeRec { token, children } =>{
+                                    match token{
+                                        Token::Name( name, _) =>{
+                                            print!("access named field not implemented");
+                                            print!("field is: {}", name);
+                                            print!("name is: {}", vector_name);
+                                            print!("object is: {:?}", &mut context.get(vector_name.clone()) );
+                                            error!("Terminationg");
+                                        }
+                                        Token::Bracket( _, _ ) =>{
+                                            let index = evaluate_r_value(children[0].children[1].children[0].clone(), context);
+                                            // println!("index: {:?}",  index);
+                                            let value = evaluate_r_value(children[1].clone(), context);
+                                            // println!("new value: {:?}", value);
+                                            let oldVector = &mut context.get(vector_name.clone());
+                                            // oldVector.setValueByIndex(index., value);
+                                            oldVector.setValueByIndex(index.readFloat().round() as i64 as usize, value);
+                                            context.set(vector_name, oldVector.clone());
+                                        }
+                                        _ =>{
+                                            error!("Not suppoerted index type")
+                                        }
+                                    }
+                                }
+                            }
+                            // let index = evaluate_r_value(children[0].children[1].children[0].clone(), context);
+                            // // println!("index: {:?}",  index);
+                            // let value = evaluate_r_value(children[1].clone(), context);
+                            // // println!("new value: {:?}", value);
+                            // let oldVector = &mut context.get(vector_name.clone());
+                            // // oldVector.setValueByIndex(index., value);
+                            // oldVector.setValueByIndex(index.readFloat().round() as i64 as usize, value);
+                            // context.set(vector_name, oldVector.clone());
                             // context.set(name, value)
                             
                             // panic!("proper dynamic index access");
@@ -2016,6 +2043,13 @@ fn testExecution(){
         id = 1    
         sharedInterests = [ 5 6 9 ]   
     ]
+
+    g = [ 0 1 2 ]
+    s = [ g g ]
+    u = [ 2 5 [ 9 0 ] ]
+
+    u.(0) = 4
+    data.id = 23
 
     k = 11
 
