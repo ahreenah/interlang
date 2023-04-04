@@ -2022,7 +2022,7 @@ fn testExecution(){
     f = func(x){
         t = x * 2
         k = 9
-        return ( t  + k )
+        return ( t )
     }
 
     s1 = f ( 2 )
