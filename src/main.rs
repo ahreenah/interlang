@@ -1088,6 +1088,124 @@ impl SimData{
             }
         }
     }
+
+    fn set_by_path(&self, path: &[SimData], value: SimData) -> SimData {
+        if path.is_empty() {
+            // Path cannot be empty
+            panic!("Path cannot be empty");
+        }
+
+        let mut current_obj = self.clone();
+        let mut remaining_path = path.iter();
+
+        // Skip the first element of the path
+        // remaining_path.next();
+
+
+        if path.len() == 1{
+            match current_obj {
+
+                SimData::Object(ref mut map) => {
+                    let obj_name = path[0].clone();
+                    let obj = self.clone();
+                    println!("set key {:?} to value {}", obj_name.readString(), value);
+                    *map.entry(obj_name.readString()).or_insert(SimData::Null) = value;
+                    return SimData::Object(map.clone());
+                },
+                SimData::Vector(ref mut vec) => {
+                    let obj_name = &path[0].clone();
+                    let obj = self.clone();
+                    println!("set key {:?} to value {}", obj_name.clone().readFloat(), value);
+                    vec[obj_name.clone().readFloat().round() as usize] = value;
+                    return SimData::Vector(vec.clone());
+                },
+                _ =>{
+                    error!("Object is required");
+                }
+            }
+        } else{
+            match current_obj {
+
+                SimData::Object(ref mut map) => {
+                    let obj_name = path[0].clone();
+                    let obj = self.clone();
+                    println!("set key {:?} to value {}", obj_name.readString(), value);
+
+                    if let Some(x) = map.get( &obj_name.readString()){
+                        let inner = x.clone();
+                        let mut inner_path = path.clone();
+                        if let Some((first, rest)) = inner_path.split_first() {
+                            inner_path = rest;
+                            // println!("The first element is: {}", first);
+                            // println!("The rest of the array is: {:?}", inner_path);
+                            // panic!("inner path:{:#?}", inner_path);
+                        }
+                        // panic!("in if let path long in obj is : {:#?}\nmap is: {:#?}\nobj name is: {:#?}", inner_path, map, &obj_name.readString());
+                        *map.entry(obj_name.readString()).or_insert(SimData::Null) = x.clone().set_by_path(inner_path, value);
+                    }
+                    
+                    return SimData::Object(map.clone());
+                },
+                SimData::Vector(ref mut vec) => {
+                    let obj_name = &path[0].clone();
+                    let obj = self.clone();
+                    println!("set key {:?} to value {}", obj_name.clone().readFloat(), value);
+                    // vec[obj_name.clone().readFloat().round() as usize] = value;
+                    // from  above
+
+                    if let Some(x) = vec.get( obj_name.clone().readFloat().round() as usize ) {
+                        let inner = x.clone();
+                        let mut inner_path = path.clone();
+                        if let Some((first, rest)) = inner_path.split_first() {
+                            inner_path = rest;
+                            // println!("The first element is: {}", first);
+                            // println!("The rest of the array is: {:?}", inner_path);
+                            // panic!("inner path:{:#?}", inner_path);
+                        }
+                        // panic!("in if let path long in obj is : {:#?}\nmap is: {:#?}\nobj name is: {:#?}", inner_path, map, &obj_name.readString());
+                        vec[obj_name.clone().readFloat().round() as usize] = x.clone().set_by_path(inner_path, value);
+                    }
+                    
+                    // end from above
+                    return SimData::Vector(vec.clone());
+                },
+                _ =>{
+                    error!("Object is required");
+                }
+            }
+        }
+        panic!("length more that 1 is not allowed");
+
+        for obj_name in remaining_path {
+            current_obj = match current_obj {
+                SimData::Object(ref mut map) => {
+                    let obj_name = obj_name.clone().to_string();
+                    let obj = map.entry(obj_name).or_insert_with(|| SimData::Object(HashMap::new()));
+                    obj.clone()
+                },
+                SimData::Vector(ref mut list) => {
+                    let index = obj_name.clone().readFloat().round() as usize;
+                    let obj = list.get_mut(index).expect("Index out of range");
+                    obj.clone()
+                },
+                _ => panic!("Cannot get sub-object from non-composite type"),
+            }
+        }
+
+        match current_obj {
+            SimData::Object(ref mut map) => {
+                let obj_name = path.last().unwrap().clone().to_string();
+                map.insert(obj_name, value);
+                SimData::Object(map.clone())
+            },
+            SimData::Vector(ref mut list) => {
+                let index = path.last().unwrap().clone().readFloat().round() as usize;//.expect("Invalid index in path");
+                list[index as usize] = value;
+                SimData::Vector(list.clone())
+            },
+            _ => panic!("Cannot set value on non-composite type"),
+        }
+    }
 }
 
 
@@ -1130,6 +1248,24 @@ impl ContextScope {
         }
         // let mut current_scope = self;
         // self.context.borrow_mut().insert(name, value);
+    }
+
+    fn set_by_path(&self, path: Vec<SimData>, value: SimData) {
+        if path.is_empty(){
+            error!("Path cannot be empty");
+        }
+        let obj_name = path[0].to_string();
+        let mut remaining_path = path;
+        remaining_path.remove(0);
+        let new_obj = self.get(obj_name);
+        
+
+        let mut i = 0;
+        while i < remaining_path.len() - 1 {
+            let obj_name = &remaining_path[i];
+            
+        }
+        // iterate through path from 1st element (skip element with index 0) and get the value by it
     }
 
     fn pset(&self, name: String, value: SimData){
@@ -1220,6 +1356,30 @@ impl Context {
     }
 }
 
+
+
+
+fn path_elem_from_token(tokenTreeRec:TokenTreeRec, context:&ContextScope) -> SimData {
+    let TokenTreeRec{token, children} = tokenTreeRec;
+    match token{
+        Token::Name( name, _ ) => return SimData::String(name),
+        Token::Bracket(_, _) => return evaluate_r_value(children[0].clone(), &mut context.clone()),
+        _ => error!("Incorrect path token")
+    }
+    
+    SimData::Null
+}
+
+fn get_path_from_dot_tree(tree: TokenTreeRec, context:&ContextScope) -> Vec<SimData> { // accepts TokenTreeRec with a dot as main element
+    let mut path:Vec<SimData> = vec![];
+    if get_name(&tree.children[0].token) == "."{ // first child is also a dot
+        let mut old_path = get_path_from_dot_tree(tree.children[0].clone(), context);
+        old_path.push(path_elem_from_token(tree.children[1].clone(), context));
+        return old_path;
+    } 
+    // else
+    return vec![path_elem_from_token(tree.children[0].clone(), context), path_elem_from_token(tree.children[1].clone(), context)]
+}
 
 unsafe fn test_vec_read(vec_value: Option<SimData>) -> Option<Vec<SimData>>{
     match vec_value{
@@ -1785,12 +1945,29 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec) -> SimData
                         if name == "." {
                             // panic!("dot children 0 is: {:?}", children[0].children[1]);
                             // println!("Sign is .");
+                            let value = evaluate_r_value(children[1].clone(), context);
+                            print!("\n\nDot found!\n\n");
+
+                            let mut path = get_path_from_dot_tree(children[0].clone(), context);
+                            let value = evaluate_r_value(children[1].clone(), context);
+                            let (root, remaining_path) = path.split_first().expect("Path cannot be empty");
+                            let old_obj = context.get(root.readString());
+                            println!("\n\nname is  << {:?} >>", root);
+                            println!("path is  << {:?} >>", remaining_path);
+                            println!("value is  << {:?} >>", value);
+                            println!("Old object is  << {:#?} >>\n\n", old_obj);
+                            let new_obj = old_obj.set_by_path(remaining_path, value );
+                            println!("\n\n new data: {:#?} \n\n", new_obj);
+                            context.set(root.readString(), new_obj);
+                            continue;
+                            // panic!("\n\nDot found!\n\n");
+
                             let vector_name = get_name(&children[0].children[0].clone().token);
                             // println!("vector name: {:?}", vector_name);
                             // println!("vector data: {:?}", evaluate_r_value(children[0].children[0].clone(), context));
                             let index = evaluate_r_value(children[0].children[1].children[0].clone(), context);
                             // println!("index: {:?}",  index);
-                            let value = evaluate_r_value(children[1].clone(), context);
+                            // let value = evaluate_r_value(children[1].clone(), context);
                             // println!("new value: {:?}", value);
                             let oldVector = &mut context.get(vector_name.clone());
                             // oldVector.setValueByIndex(index., value);
@@ -1974,7 +2151,7 @@ fn testExecution(){
             pivot = sorted.(high)
         
             j = low
-            while (j <= high - 1) {
+        while (j <= high - 1) {
                 if (sorted.(j) <= pivot) {
                     i = i + 1
         
@@ -2012,10 +2189,17 @@ fn testExecution(){
     
      */
     let code =r#"
-    data = [    
-        id = 1    
-        sharedInterests = [ 5 6 9 ]   
+    in1 = [ 1 2 3 ]
+    in2 = [
+        x = 8
+        s = 9
     ]
+    data = [    
+        id = 2007    
+        sharedInterests = [ 1 6 9 in1 in2 ]   
+    ]
+
+    ar = [ 1 4 2 7 ]
 
     k = 11
 
@@ -2027,6 +2211,10 @@ fn testExecution(){
 
     s1 = f ( 2 )
     p = s1
+    ar.(2) = 1
+    data.sharedInterests.(0) = 4-8
+    data.sharedInterests.(3).(1) = 4+1
+    data.sharedInterests.(4).x = data.sharedInterests.(4)
 
     "#;
     /*
