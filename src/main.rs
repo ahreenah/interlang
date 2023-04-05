@@ -108,10 +108,10 @@ impl<'a> Lexer<'a> {
                     let number = self.parse_number();
                     tokens.push(Token::Number(number, self.nest_level));
                 }
-                '+' | '-' | '*' | '/' | '=' | '>' | '<' | '!' => {
+                '+' | '-' | '*' | '/' | '=' | '>' | '<' | '!'  | ':' => {
                     let mut name = current_char.to_string();
                     self.advance();
-                    if ((name=='<'.to_string()) || (name=='>'.to_string()) || (name=='='.to_string()) || (name=='!'.to_string())){
+                    if ((name=='<'.to_string()) || (name=='>'.to_string()) || (name=='='.to_string()) || (name=='!'.to_string()) || (name==':'.to_string())  ){
                         if let Some(current_char) = self.current_char {
                             if current_char == '=' {
                                 name.push('=');
@@ -1931,7 +1931,9 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec) -> SimData
     for i in tokenTreeRec.clone().children {
         if let TokenTreeRec{ref token, ref children} = i {
             let name = get_name(&token);
-            if(name=="="){
+            if(name=="=") || (name==":=") {
+                let morsh = name == ":=";
+                // panic!("morsh {}",  morsh);
                 // println!("evaluation equation {:?}  = {:?}", &children[0], &children[1]);
                 if let TokenTreeRec{token:tokenLeft, children:leftChildren} = &children[0]{
                     if let Token::Name(name, _) = &tokenLeft {
@@ -1939,7 +1941,12 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec) -> SimData
                         let mut value;
                         println!("lookup right for left= {}",name);
                         value = evaluate_r_value(children[1].clone(), context);
-                        context.set(name, value)
+                        if(morsh){
+                            context.set(name, value)
+                        }
+                        else{
+                            context.pset(name, value)
+                        }
                     } else if let Token::MathSign(name, _) = &tokenLeft {
                         // println!("Left token is math sign");
                         if name == "." {
@@ -1958,21 +1965,27 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec) -> SimData
                             println!("Old object is  << {:#?} >>\n\n", old_obj);
                             let new_obj = old_obj.set_by_path(remaining_path, value );
                             println!("\n\n new data: {:#?} \n\n", new_obj);
-                            context.set(root.readString(), new_obj);
+                            if(morsh){
+                                context.set(root.readString(), new_obj);
+                            }
+                            else{
+                                // panic!(":= morsh");
+                                context.pset(root.readString(), new_obj);
+                            }
                             continue;
                             // panic!("\n\nDot found!\n\n");
 
-                            let vector_name = get_name(&children[0].children[0].clone().token);
-                            // println!("vector name: {:?}", vector_name);
-                            // println!("vector data: {:?}", evaluate_r_value(children[0].children[0].clone(), context));
-                            let index = evaluate_r_value(children[0].children[1].children[0].clone(), context);
-                            // println!("index: {:?}",  index);
-                            // let value = evaluate_r_value(children[1].clone(), context);
-                            // println!("new value: {:?}", value);
-                            let oldVector = &mut context.get(vector_name.clone());
-                            // oldVector.setValueByIndex(index., value);
-                            oldVector.setValueByIndex(index.readFloat().round() as i64 as usize, value);
-                            context.set(vector_name, oldVector.clone());
+                            // let vector_name = get_name(&children[0].children[0].clone().token);
+                            // // println!("vector name: {:?}", vector_name);
+                            // // println!("vector data: {:?}", evaluate_r_value(children[0].children[0].clone(), context));
+                            // let index = evaluate_r_value(children[0].children[1].children[0].clone(), context);
+                            // // println!("index: {:?}",  index);
+                            // // let value = evaluate_r_value(children[1].clone(), context);
+                            // // println!("new value: {:?}", value);
+                            // let oldVector = &mut context.get(vector_name.clone());
+                            // // oldVector.setValueByIndex(index., value);
+                            // oldVector.setValueByIndex(index.readFloat().round() as i64 as usize, value);
+                            // context.set(vector_name, oldVector.clone());
                             // context.set(name, value)
                             
                             // panic!("proper dynamic index access");
@@ -2204,9 +2217,9 @@ fn testExecution(){
     k = 11
 
     f = func(x){
-        t = x * 2
-        k = 9
-        return ( t )
+        k = x * 2
+        k := x * 4
+        return ( k )
     }
 
     s1 = f ( 2 )
@@ -2216,6 +2229,8 @@ fn testExecution(){
     data.sharedInterests.(3).(1) = 4+1
     data.sharedInterests.(4).x = data.sharedInterests.(4)
 
+    s = 0
+    t != 0
     "#;
     /*
     
@@ -2286,7 +2301,7 @@ fn testExecution(){
         vec!["*".to_string(), "/".to_string()],
         vec!["+".to_string(), "-".to_string()],
         vec![">".to_string(), "<".to_string(), ">=".to_string(), "<=".to_string(), "==".to_string(), "!=".to_string()],
-        vec!["=".to_string()]
+        vec!["=".to_string(), ":=".to_string()] // ':=' is forced to local variable, '=' is looking up
     ];
 
     let signs = s.clone();
