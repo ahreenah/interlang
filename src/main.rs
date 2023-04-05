@@ -108,7 +108,7 @@ impl<'a> Lexer<'a> {
                     let number = self.parse_number();
                     tokens.push(Token::Number(number, self.nest_level));
                 }
-                '+' | '-' | '*' | '/' | '=' | '>' | '<' | '!'  | ':' => {
+                '+' | '-' | '*' | '/' | '=' | '>' | '<' | '!'  | ':' | '@' => {
                     let mut name = current_char.to_string();
                     self.advance();
                     if ((name=='<'.to_string()) || (name=='>'.to_string()) || (name=='='.to_string()) || (name=='!'.to_string()) || (name==':'.to_string())  ){
@@ -498,6 +498,51 @@ fn process_sum_signs(tree: TokenTreeRec, lookupOperators: Vec<String>) -> (bool,
     (found, tree2)
 }
 
+
+fn process_unary_signs(tree: TokenTreeRec, lookupOperators: Vec<String>) -> (bool, TokenTreeRec) {
+    let mut tree2 = TokenTreeRec::new(Token::Keyword(get_name(&tree.token), 0));
+    let mut min_level: usize = 0;
+    let mut max_level: usize = 0;
+    let mut i = 0;
+    let mut found = true;
+    found = false;
+
+    while i < tree.children.len() - 1 {
+        if
+            !found &&
+            lookupOperators.contains(&&get_name(&tree.clone().children[i].token).to_string()) &&
+            is_empty(&tree.clone().children[i].children)
+        {
+            // current item is unary sign
+            // next item is elem
+            let mut newToken = tree.children[i].clone();
+            newToken.children.push(tree.children[i + 1].clone());
+            tree2.children.push(newToken);
+            i += 1;
+            // found = true;
+            // println!("found);");
+        } else {
+            let mut newToken = tree.children[i].clone();
+            tree2.children.push(newToken);
+        }
+        i += 1;
+    }
+    while i < tree.children.len() {
+        let mut newToken = tree.children[i].clone();
+
+        if newToken.children.len() >= 2 {
+            let (_, processed) = process_multiply_signs(newToken.clone());
+            tree2.children.push(processed);
+            // tree2.children.push(newToken);
+        } else {
+            tree2.children.push(newToken);
+        }
+        i += 1;
+    }
+
+    (found, tree2)
+}
+
 fn findUngroupedOperator(tree: TokenTreeRec, operator: Vec<String>) -> Vec<usize> {
     let mut path = Vec::new();
     let mut i = 0;
@@ -574,7 +619,7 @@ fn nestAdjascents(tree: TokenTreeRec) -> (bool, TokenTreeRec) {
 
     while i < tree.children.len() - 2 {
         if
-            vec!["if".to_string(), "while".to_string(), "func".to_string()].contains(
+            vec!["if".to_string(), "while".to_string(), "func".to_string(), ].contains(
                 &get_name(&tree.clone().children[i].token)
             )
         {
@@ -786,7 +831,8 @@ enum SimData {
     String(String),
     Object(HashMap<String, SimData>),
     Error(String),
-    Function(Vec<String>,Vec<TokenTreeRec>)
+    Function(Vec<String>,Vec<TokenTreeRec>),
+    Link(String, Vec<SimData>),
 }
 
 
@@ -856,6 +902,7 @@ impl SimData{
             SimData::Error(_) => "Error".to_string(),
             SimData::String(_) => "String".to_string(),
             SimData::Function(_, _) => "Function".to_string(),
+            SimData::Link(_,_) => "Link".to_string(),
             SimData::Null => "Null".to_string()
         }
     }
@@ -1690,7 +1737,7 @@ fn execute_func_call(func_obj:SimData, args:Vec<SimData>, parentContext:&mut Con
 
 fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimData{
     println!("token is: {:?}", tokenTree.clone());
-    if let TokenTreeRec{token:ref tokenRight, children:children} = tokenTree{
+    if let TokenTreeRec{token:ref tokenRight, children:children} = tokenTree.clone(){
         println!("name is {} {}", get_name(tokenRight), get_type(tokenRight));
         match tokenRight {
             Token::Number(name, level) => {
@@ -1799,6 +1846,25 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                 }
                 else if *name == "!=" {
                     return SimData::neq(evaluate_r_value(children.clone()[0].clone(), context), evaluate_r_value(children.clone()[1].clone(), context))
+                }
+                else if *name == "@" {
+                    if(get_name(&children.clone()[0].token)=="(".to_string()){
+                        let TokenTreeRec{ token, children:c } = children[0].clone();
+                        let full_path = get_path_from_dot_tree(children[0].children[0].clone(), context);
+                        return SimData::Link(full_path[0].readString(), full_path[1..].to_vec());
+                        panic!("Today children of link operator are: {:#?}", get_path_from_dot_tree(children[0].children[0].clone(), context) );
+                    } else {
+                        let TokenTreeRec{ token, children:_ } = children[0].clone();
+                        if let Token::Name( name, _) = token{
+                            return SimData::Link(name.to_string(), vec![]);
+                            panic!("\n\nToday children of link operator are: {:#?}\n\n", vec![SimData::String(name)] );
+                        }
+                        else{
+                            return SimData::Link("Hello".to_string(), vec![]);
+                            panic!("Incorrect call of link orperator: {:#?}", children.clone()[0] );
+                        }
+                    }
+                    
                 }
                 else if *name == "." {
                     // println!("{:#?}", children);
@@ -2234,7 +2300,14 @@ fn testExecution(){
     data.sharedInterests.(4).x = data.sharedInterests.(4)
 
     s = 0
-    t != 0
+
+    l = @(in2.x.y.(9))
+    d = 0
+    lp = @(in2.x.y)
+    zd = @d
+
+    t = 0
+
     "#;
     /*
     
@@ -2300,8 +2373,10 @@ fn testExecution(){
     (_, tokenTreeRec) = nestAdjascents(tokenTreeRec.clone());
     (_, tokenTreeRec) = nestCalls(tokenTreeRec.clone());
 
+    (_,tokenTreeRec) = process_unary_signs(tokenTreeRec, vec!["@".to_string()]);
+
     let s = vec![
-        vec![".".to_string()],
+        vec![".".to_string(), ],
         vec!["*".to_string(), "/".to_string()],
         vec!["+".to_string(), "-".to_string()],
         vec![">".to_string(), "<".to_string(), ">=".to_string(), "<=".to_string(), "==".to_string(), "!=".to_string()],
