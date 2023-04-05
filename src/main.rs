@@ -1269,6 +1269,9 @@ impl ContextScope {
     }
 
     fn pset(&self, name: String, value: SimData){
+        if(self.has(name.clone())){
+            return self.set(name, value);
+        }
         if let Some(parent_scope) = &self.parent_scope {
             if parent_scope.has(name.clone()){
                 parent_scope.pset(name.clone(), value)
@@ -2219,6 +2222,7 @@ fn testExecution(){
     f = func(x){
         k = x * 2
         k := x * 4
+        k = k * 4
         return ( k )
     }
 
