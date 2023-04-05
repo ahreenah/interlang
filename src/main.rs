@@ -2305,6 +2305,7 @@ fn testExecution(){
     d = 0
     lp = @(in2.x.y)
     zd = @d
+    data.sharedInterests.(4).x.x = 112
 
     t = 0
 
