@@ -831,8 +831,8 @@ enum SimData {
     String(String),
     Object(HashMap<String, SimData>),
     Error(String),
-    Function(Vec<String>,Vec<TokenTreeRec>),
-    Link(String, Vec<SimData>, usize),
+    Function(Vec<String>,Vec<TokenTreeRec>), // args and body
+    Link(String, Vec<SimData>, usize), // name ob object in context scope, path inside this object and id of scope
 }
 
 
