@@ -832,7 +832,7 @@ enum SimData {
     Object(HashMap<String, SimData>),
     Error(String),
     Function(Vec<String>,Vec<TokenTreeRec>),
-    Link(String, Vec<SimData>),
+    Link(String, Vec<SimData>, usize),
 }
 
 
@@ -902,7 +902,7 @@ impl SimData{
             SimData::Error(_) => "Error".to_string(),
             SimData::String(_) => "String".to_string(),
             SimData::Function(_, _) => "Function".to_string(),
-            SimData::Link(_,_) => "Link".to_string(),
+            SimData::Link(_,_,_) => "Link".to_string(),
             SimData::Null => "Null".to_string()
         }
     }
@@ -1262,22 +1262,37 @@ struct ContextScope {
     context: Rc<RefCell<HashMap<String, SimData>>>,
     links: RefCell<HashMap<String, String>>,
     parent_scope: Option<Rc<ContextScope>>,
+    id: usize,
+    count: Rc<RefCell<usize>>,
 }
+
+static mut current_context_id: usize = 0;
 
 impl ContextScope {
     fn new() -> ContextScope {
+        let count = Rc::new(RefCell::new(1));
         ContextScope {
             context: Rc::new(RefCell::new(HashMap::new())),
             links: RefCell::new(HashMap::new()),
             parent_scope: None,
+            id: 1,
+            count
         }
     }
 
     fn extend(&self) -> ContextScope {
+        let count = self.count.clone();
+        let new_id = {
+            let mut count_ref = count.borrow_mut();
+            *count_ref += 1;
+            *count_ref
+        };
         ContextScope {
             context: Rc::new(RefCell::new(HashMap::new())),
             links: RefCell::new(HashMap::new()),
             parent_scope: Some(Rc::new(self.clone())),
+            id: new_id,
+            count
         }
     }
 
@@ -1851,16 +1866,16 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                     if(get_name(&children.clone()[0].token)=="(".to_string()){
                         let TokenTreeRec{ token, children:c } = children[0].clone();
                         let full_path = get_path_from_dot_tree(children[0].children[0].clone(), context);
-                        return SimData::Link(full_path[0].readString(), full_path[1..].to_vec());
+                        return SimData::Link(full_path[0].readString(), full_path[1..].to_vec(),context.id);
                         panic!("Today children of link operator are: {:#?}", get_path_from_dot_tree(children[0].children[0].clone(), context) );
                     } else {
                         let TokenTreeRec{ token, children:_ } = children[0].clone();
                         if let Token::Name( name, _) = token{
-                            return SimData::Link(name.to_string(), vec![]);
+                            return SimData::Link(name.to_string(), vec![],context.id);
                             panic!("\n\nToday children of link operator are: {:#?}\n\n", vec![SimData::String(name)] );
                         }
                         else{
-                            return SimData::Link("Hello".to_string(), vec![]);
+                            return SimData::Link("Hello".to_string(), vec![],context.id);
                             panic!("Incorrect call of link orperator: {:#?}", children.clone()[0] );
                         }
                     }
