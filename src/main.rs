@@ -1929,6 +1929,33 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                             (SimData::Vector(ref v), "length") => {
                                 return SimData::Float(v.len() as f64);
                             },
+                            (SimData::Vector(ref v), "len") => {
+                                return SimData::Function(vec![],vec![
+                                    TokenTreeRec {
+                                        token: Token::Keyword(
+                                            "return".to_string(),
+                                            2,
+                                        ),
+                                        children: vec![
+                                            TokenTreeRec {
+                                                token: Token::Bracket(
+                                                    '(',
+                                                    2,
+                                                ),
+                                                children: vec![
+                                                    TokenTreeRec {
+                                                        token: Token::Number(
+                                                            v.len() as f64,
+                                                            3,
+                                                        ),
+                                                        children: vec![],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ]);
+                            },
                             (SimData::Object(ref v), _) => {
                                 if let Some(data) = v.get(name.as_str()){
                                     return data.clone();
@@ -2299,6 +2326,12 @@ fn testExecution(){
     ar = [ 1 4 2 7 ]
 
     k = 11
+    arl = ar.length
+    arl2 = ar.len
+    arl3 = func(){
+        return ( 4 )
+    }
+    s3 = arl2(0)
 
     f = func(x){
         k = x * 2
