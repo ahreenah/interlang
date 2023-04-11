@@ -108,7 +108,7 @@ impl<'a> Lexer<'a> {
                     let number = self.parse_number();
                     tokens.push(Token::Number(number, self.nest_level));
                 }
-                '+' | '-' | '*' | '/' | '=' | '>' | '<' | '!'  | ':' | '@' => {
+                '+' | '-' | '*' | '/' | '=' | '>' | '<' | '!'  | ':' | '@' | '$' => {
                     let mut name = current_char.to_string();
                     self.advance();
                     if ((name=='<'.to_string()) || (name=='>'.to_string()) || (name=='='.to_string()) || (name=='!'.to_string()) || (name==':'.to_string())  ){
@@ -1733,17 +1733,6 @@ fn execute_func_call(func_obj:SimData, args:Vec<SimData>, parentContext:&mut Con
         }
         println!("body: {:?}", body[0]);
         return execute_tree(&mut context, TokenTreeRec{children:body.clone(), token:Token::Keyword("Code".to_string(), 1)});
-
-        // println!(
-        //     "Function execution finished"
-        // );
-        // for (name, data) in context.context.borrow().iter() {
-        //     println!("{} -> {:#?}", name, data);
-        // }
-        
-        // for command in body {
-        //     execute_tree(&mut context, command.clone());
-        // }
     } else {
         error!("not callable");
     }
@@ -2084,23 +2073,35 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec) -> SimData
                                 context.pset(root.readString(), new_obj);
                             }
                             continue;
-                            // panic!("\n\nDot found!\n\n");
-
-                            // let vector_name = get_name(&children[0].children[0].clone().token);
-                            // // println!("vector name: {:?}", vector_name);
-                            // // println!("vector data: {:?}", evaluate_r_value(children[0].children[0].clone(), context));
-                            // let index = evaluate_r_value(children[0].children[1].children[0].clone(), context);
-                            // // println!("index: {:?}",  index);
-                            // // let value = evaluate_r_value(children[1].clone(), context);
-                            // // println!("new value: {:?}", value);
-                            // let oldVector = &mut context.get(vector_name.clone());
-                            // // oldVector.setValueByIndex(index., value);
-                            // oldVector.setValueByIndex(index.readFloat().round() as i64 as usize, value);
-                            // context.set(vector_name, oldVector.clone());
-                            // context.set(name, value)
-                            
-                            // panic!("proper dynamic index access");
+                        } else if name == "$" {
+                            let pointer = children[0].children[0].clone().token;
+                            if let Token::Name(name, level) = pointer {
+                                let mut pointer_data = context.get(name);
+                                if let SimData::Link(name_in_ctx, path, level) = &pointer_data{
+                                    println!("Name: {} \nPath:{:#?} \nLevel:{}", name_in_ctx, path, level);
+                                    if(*level == 1 as usize){
+                                        println!("set");
+                                        let mut new_path = path.clone();
+                                        new_path.insert(0, SimData::String(name_in_ctx.clone()));
+                                        let old_obj = context.get(name_in_ctx.clone());
+                                        let (root, remaining_path) = new_path.split_first().expect("Path cannot be empty");
+                                        let value = evaluate_r_value(children[1].clone(), context);
+                                        println!("path: {:?}", remaining_path.clone());
+                                        let new_obj = old_obj.set_by_path(remaining_path, value );
+                                        context.set(name_in_ctx.clone(), new_obj);
+                                        // return SimData::Null; /
+                                        // context.set_by_path(new_path.clone(), new_obj)
+                                    }
+                                    else{
+                                        println!("level {} is not suppotred", level)
+                                    }
+                                }
+                                // panic!("Asignment by pointer {:#?}", pointer_data);//children[0]);panic!("Asignment by pointer {:#?}", pointer);//children[0]);
+                            } else {
+                                panic!("Incorrect pointer assignment {:#?}", pointer);
+                            }
                         } else {
+
                             panic!("unsupported lvalue type {:#?}", children[0]);
                         }
                     }
@@ -2349,10 +2350,14 @@ fn testExecution(){
 
     s = 0
 
-    l = @(in2.x.y.(9))
+    l = @(in2.x)
     d = 0
-    lp = @(in2.x.y)
-    zd = @d
+    lpp = @(in2.y)
+    $lpp = 1
+    x = 0
+    $lpp = 2
+    u = 0
+    $l = 2007
     data.sharedInterests.(4).x.x = 112
 
     t = 0
@@ -2410,7 +2415,7 @@ fn testExecution(){
 
     let mut tokenTreeRec = process_tokens(&tokens);
 
-    // print!("{:?}", tokenTreeRec);
+    // print!("{:#?}", tokenTreeRec);
     // panic!("tree only mode");
 
     while hasLevel(tokenTreeRec.clone(), 2) {
@@ -2422,7 +2427,7 @@ fn testExecution(){
     (_, tokenTreeRec) = nestAdjascents(tokenTreeRec.clone());
     (_, tokenTreeRec) = nestCalls(tokenTreeRec.clone());
 
-    (_,tokenTreeRec) = process_unary_signs(tokenTreeRec, vec!["@".to_string()]);
+    (_,tokenTreeRec) = process_unary_signs(tokenTreeRec, vec!["@".to_string(),"$".to_string()]);
 
     let s = vec![
         vec![".".to_string(), ],
