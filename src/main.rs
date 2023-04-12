@@ -2097,6 +2097,34 @@ fn execute_tree(context:&mut ContextScope, tokenTreeRec:TokenTreeRec) -> SimData
                                     }
                                 }
                                 // panic!("Asignment by pointer {:#?}", pointer_data);//children[0]);panic!("Asignment by pointer {:#?}", pointer);//children[0]);
+                            } else if let Token::Bracket(name, level) = pointer {
+                                panic!("Pointer path assignment {:#?}", children[0]);
+                            } else if let Token::Keyword(name, level) = pointer {
+                                if name=="(" {
+                                    let path = get_path_from_dot_tree(children[0].children[0].children[0].clone(), context);
+                                    let (root, remaining_path) = path.split_first().expect("Path cannot be empty");
+                                    println!("\n\nroot: {:?}", root);
+                                    println!("pointer: {:?}", context.get(root.readString()));
+                                    println!("path is {:#?} \n\n", remaining_path);
+                                    let mut d = & context.get(root.readString());
+                                    if let SimData::Link(var_name, path, level) = d{
+                                        println!("path is {:#?} \n\n", remaining_path);   
+                                        let mut res_path:&mut Vec<SimData> = &mut path.clone();
+                                        res_path.extend(remaining_path.to_vec().clone());
+                                        let res_pointer = SimData::Link(var_name.clone(), res_path.clone(), level.clone());
+                                        println!("pointer computed: {:#?} \n\n", res_pointer);
+
+                                        let old_obj = context.get(var_name.clone());
+                                        // let (root, remaining_path) = res_path.split_first().expect("Path cannot be empty");
+                                        let value = evaluate_r_value(children[1].clone(), context);
+                                        println!("path: {:?}", remaining_path.clone());
+                                        let new_obj = old_obj.set_by_path(res_path, value );
+                                        context.set(var_name.clone(), new_obj);
+                                        // panic!("Pointer path assignment {:#?}", children[0].children[0].children[0]);
+                                    } else {
+                                        panic!("Pointer path assignment {:#?}", children[0].children[0].children[0]);
+                                    }
+                                }
                             } else {
                                 panic!("Incorrect pointer assignment {:#?}", pointer);
                             }
@@ -2318,49 +2346,52 @@ fn testExecution(){
     in2 = [
         x = 8
         s = 9
+        u = [
+            d = 0
+        ]
     ]
     data = [    
-        id = 2007    
-        sharedInterests = [ 1 6 9 in1 in2 ]   
-    ]
+         id = 2007    
+         sharedInterests = [ 1 6 9 in1 in2 ]   
+     ]
+ 
+     ar = [ 1 4 2 7 ]
+ 
+     k = 11
+     arl = ar.length
+     arl2 = ar.len
+     arl3 = func(){
+         return ( 4 )
+     }
+     s3 = arl2(0)
+ 
+     f = func(x){
+         k = x * 2
+         k := x * 4
+         k = k * 4
+         return ( k )
+     }
+ 
+     s1 = f ( 2 )
+     p = s1
+     ar.(2) = 1
+     data.sharedInterests.(0) = 4-8
+     data.sharedInterests.(3).(1) = 4+1
+     data.sharedInterests.(4).x = data.sharedInterests.(4)
+ 
+     s = 0
+ 
+     l = @(in2.u)
+     d = 0
+     lpp = @(in2.y)
+     $lpp = 1
+     x = 0
+     $lpp = 2
+     u = 0
+     $(l.d) = 12
+     data.sharedInterests.(4).x.x = 112
 
-    ar = [ 1 4 2 7 ]
-
-    k = 11
-    arl = ar.length
-    arl2 = ar.len
-    arl3 = func(){
-        return ( 4 )
-    }
-    s3 = arl2(0)
-
-    f = func(x){
-        k = x * 2
-        k := x * 4
-        k = k * 4
-        return ( k )
-    }
-
-    s1 = f ( 2 )
-    p = s1
-    ar.(2) = 1
-    data.sharedInterests.(0) = 4-8
-    data.sharedInterests.(3).(1) = 4+1
-    data.sharedInterests.(4).x = data.sharedInterests.(4)
-
-    s = 0
-
-    l = @(in2.x)
-    d = 0
-    lpp = @(in2.y)
-    $lpp = 1
-    x = 0
-    $lpp = 2
-    u = 0
-    $l = 2007
-    data.sharedInterests.(4).x.x = 112
-
-    t = 0
+     t = 0
 
     "#;
     /*
