@@ -704,8 +704,8 @@ fn nestCalls(tree: TokenTreeRec) -> (bool, TokenTreeRec) {
     found = false;
 
     let mut i = 0;
-
-    while i < tree.children.len() - 1 {
+    if tree.children.len()>0{
+        while i < tree.children.len() - 1 {
         if
             (vec!["Name".to_string()].contains( // TODO: real function name check
                 &get_type(&tree.clone().children[i].token)
@@ -751,6 +751,7 @@ fn nestCalls(tree: TokenTreeRec) -> (bool, TokenTreeRec) {
             tree2.children.push(newToken);
         }
         i += 1;
+    }
     }
     while i < tree.children.len() {
         let mut newToken = tree.children[i].clone();
@@ -1801,6 +1802,9 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                             if let Token::Name(name, _) = functionToken{
                                 funcName = name;
                             }
+                            else{
+                                panic!("calling")
+                            }
                         // }
                     }
                     let mut i = 1;
@@ -2371,6 +2375,13 @@ fn testExecution(){
          k = k * 4
          return ( k )
      }
+
+     createPair = func(a b) {
+        return [
+            first = a
+            second = b
+        ]
+     }
  
      s1 = f ( 2 )
      p = s1
@@ -2392,6 +2403,16 @@ fn testExecution(){
      data.sharedInterests.(4).x.x = 112
 
      t = 0
+     p1 = createPair( 9 0 )
+
+     vl = data.sharedInterests.len
+     vl = vl()
+     t = 0
+
+     k = 0
+
+
+
 
     "#;
     /*
@@ -2456,6 +2477,8 @@ fn testExecution(){
     }
 
     (_, tokenTreeRec) = nestAdjascents(tokenTreeRec.clone());
+    println!("Token tree generated");
+    println!("{:#?}", tokenTreeRec);
     (_, tokenTreeRec) = nestCalls(tokenTreeRec.clone());
 
     (_,tokenTreeRec) = process_unary_signs(tokenTreeRec, vec!["@".to_string(),"$".to_string()]);
@@ -2493,8 +2516,8 @@ fn testExecution(){
         }
     }
 
-    println!("Token tree generated");
-    println!("{:#?}", tokenTreeRec);
+    // println!("Token tree generated");
+    // println!("{:#?}", tokenTreeRec);
 
     // process::exit(2007);
 
