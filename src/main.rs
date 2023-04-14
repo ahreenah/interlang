@@ -2346,72 +2346,27 @@ fn testExecution(){
     
      */
     let code =r#"
-    in1 = [ 1 2 3 ]
-    in2 = [
-        x = 8
-        s = 9
-        u = [
-            d = 0
-        ]
-    ]
-    data = [    
-         id = 2007    
-         sharedInterests = [ 1 6 9 in1 in2 ]   
-     ]
- 
-     ar = [ 1 4 2 7 ]
- 
-     k = 11
-     arl = ar.length
-     arl2 = ar.len
-     arl3 = func(){
-         return ( 4 )
-     }
-     s3 = arl2(0)
- 
-     f = func(x){
-         k = x * 2
-         k := x * 4
-         k = k * 4
-         return ( k )
+    in1 = [ 1 2 9 3 8 6 ]
+    
+
+     sort = func (arr){
+        i = 0
+        while (i < arr.length - 1) {
+            j = i
+            while (j < arr.length) {
+                if ( arr.(i) < arr.(j) ) {
+                    t = arr.(i)
+                    arr.(i) = arr.(j)
+                    arr.(j) = t
+                }
+                j = j + 1
+            }
+            i = i + 1
+        }
+        return (arr)
      }
 
-     createPair = func(a b) {
-        return [
-            first = a
-            second = b
-        ]
-     }
- 
-     s1 = f ( 2 )
-     p = s1
-     ar.(2) = 1
-     data.sharedInterests.(0) = 4-8
-     data.sharedInterests.(3).(1) = 4+1
-     data.sharedInterests.(4).x = data.sharedInterests.(4)
- 
-     s = 0
- 
-     l = @(in2.u)
-     d = 0
-     lpp = @(in2.y)
-     $lpp = 1
-     x = 0
-     $lpp = 2
-     u = 0
-     $(l.d) = 12
-     data.sharedInterests.(4).x.x = 112
-
-     t = 0
-     p1 = createPair( 9 0 )
-
-     vl = data.sharedInterests.len
-     vl = vl()
-     t = 0
-
-     k = 0
-
-
+     d = sort(in1)
 
 
     "#;
