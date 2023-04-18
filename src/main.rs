@@ -823,6 +823,10 @@ impl fmt::Debug for SimDataPayload {
 //     data: SimDataPayload,
 // }
 
+// impl Clone for &mut ContextScope{
+
+// }
+
 #[derive(Clone, Debug)]
 enum SimData {
     Null,
@@ -832,7 +836,7 @@ enum SimData {
     String(String),
     Object(HashMap<String, SimData>),
     Error(String),
-    Function(Vec<String>,Vec<TokenTreeRec>), // args and body
+    Function(Vec<String>,Vec<TokenTreeRec>, Option<*mut ContextScope>), // args and body
     Link(String, Vec<SimData>, usize), // name ob object in context scope, path inside this object and id of scope
 }
 
@@ -902,7 +906,7 @@ impl SimData{
             SimData::Bool(_) => "Bool".to_string(),
             SimData::Error(_) => "Error".to_string(),
             SimData::String(_) => "String".to_string(),
-            SimData::Function(_, _) => "Function".to_string(),
+            SimData::Function(..) => "Function".to_string(),
             SimData::Link(_,_,_) => "Link".to_string(),
             SimData::Null => "Null".to_string()
         }
@@ -1258,7 +1262,7 @@ impl SimData{
 
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ContextScope {
     context: Rc<RefCell<HashMap<String, SimData>>>,
     links: RefCell<HashMap<String, String>>,
@@ -1724,7 +1728,7 @@ fn get_names(tokens: Vec<TokenTreeRec>) -> Vec<String> {
 
 fn execute_func_call(func_obj:SimData, args:Vec<SimData>, parentContext:&mut ContextScope) -> SimData {
     let mut context = parentContext.extend();
-    if let SimData::Function(ref argNames, ref body) = func_obj {
+    if let SimData::Function(ref argNames, ref body, _) = func_obj {
         println!( "{:?} -> {:?}", argNames, args);
         if argNames.len() != args.len(){
             error!("expected {} arguments, but got {}", argNames.len(), args.len() )
@@ -1787,7 +1791,8 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
 
                     println!("args: {:#?}", get_names(children[0].children.clone()) );
                     println!("body: {:#?}", children[1].children );
-                    return SimData::Function(get_names(children[0].children.clone()) ,children[1].children.clone() );
+                    // here something is wrong
+                    return SimData::Function(get_names(children[0].children.clone()) ,children[1].children.clone(), Some(context) );
                     process::exit(90);
                 }
 
@@ -1947,7 +1952,7 @@ fn evaluate_r_value(tokenTree:TokenTreeRec, context:&mut ContextScope) -> SimDat
                                             },
                                         ],
                                     },
-                                ]);
+                                ], None);
                             },
                             (SimData::Object(ref v), _) => {
                                 if let Some(data) = v.get(name.as_str()){
@@ -2346,27 +2351,20 @@ fn testExecution(){
     
      */
     let code =r#"
-    in1 = [ 1 2 9 3 8 6 ]
+    in1 = [ 1 2 3 ]
+    contest = func (x){
+        return (x+2)
+    }
+    
+    contest2 = func (x){
+        contest3 = func (y){
+            return (x+y)
+        }
+        return contest3
+    }
     
 
-     sort = func (arr){
-        i = 0
-        while (i < arr.length - 1) {
-            j = i
-            while (j < arr.length) {
-                if ( arr.(i) < arr.(j) ) {
-                    t = arr.(i)
-                    arr.(i) = arr.(j)
-                    arr.(j) = t
-                }
-                j = j + 1
-            }
-            i = i + 1
-        }
-        return (arr)
-     }
-
-     d = sort(in1)
+    d = contest2(3)
 
 
     "#;
